@@ -1,12 +1,36 @@
-package com.univ.energymonitor.screens
+package com.univ.energymonitor.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -14,50 +38,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SharedSurveyComponents.kt
-// All reusable composables used across survey steps live here.
-// Steps 1–6 all import from this file — no duplicates anywhere.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Brand colors — single source of truth for the whole survey
-val SurveyGreenDark    = Color(0xFF1B5E20)
-val SurveyGreenPrimary = Color(0xFF2E7D32)
-val SurveyBgGray       = Color(0xFFF5F5F5)
-val SurveyCardWhite    = Color.White
-val SurveyTextGray     = Color(0xFF757575)
-val SurveyTextDark     = Color(0xFF212121)
-val SurveyErrorRed     = Color(0xFFD32F2F)
-
+import com.univ.energymonitor.ui.theme.DarkGreen
+import com.univ.energymonitor.ui.theme.ErrorRed
+import com.univ.energymonitor.ui.theme.GreenSurface
+import com.univ.energymonitor.ui.theme.HintGray
+import com.univ.energymonitor.ui.theme.LightDivider
+import com.univ.energymonitor.ui.theme.PrimaryGreen
+import com.univ.energymonitor.ui.theme.TextDark
+import com.univ.energymonitor.ui.theme.TextGray
+import androidx.compose.runtime.*
 // ─────────────────────────────────────────────────────────────────────────────
 // Progress Bar — shows current step and % complete
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun SurveyStepProgressBar(currentStep: Int, totalSteps: Int) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.Companion.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.Companion.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 "Step $currentStep of $totalSteps",
                 fontSize = 12.sp,
-                color = SurveyGreenPrimary,
-                fontWeight = FontWeight.SemiBold
+                color = PrimaryGreen,
+                fontWeight = FontWeight.Companion.SemiBold
             )
             Text(
                 "${((currentStep.toFloat() / totalSteps) * 100).toInt()}% complete",
                 fontSize = 12.sp,
-                color = SurveyTextGray
+                color = TextGray
             )
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.Companion.height(6.dp))
         LinearProgressIndicator(
             progress = { currentStep.toFloat() / totalSteps },
-            modifier = Modifier.fillMaxWidth().height(6.dp),
-            color = SurveyGreenPrimary,
-            trackColor = Color(0xFFE0E0E0)
+            modifier = Modifier.Companion.fillMaxWidth().height(6.dp),
+            color = PrimaryGreen,
+            trackColor = LightDivider
         )
     }
 }
@@ -71,28 +88,31 @@ fun SurveySectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.Companion.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SurveyCardWhite),
+        colors = CardDefaults.cardColors(containerColor = Color.Companion.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.Companion.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.Companion.CenterVertically) {
                 Box(
-                    modifier = Modifier
+                    modifier = Modifier.Companion
                         .width(4.dp)
                         .height(20.dp)
-                        .background(SurveyGreenPrimary, RoundedCornerShape(2.dp))
+                        .background(
+                            PrimaryGreen,
+                            androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+                        )
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.Companion.width(10.dp))
                 Text(
                     title,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SurveyGreenDark
+                    fontWeight = FontWeight.Companion.Bold,
+                    color = DarkGreen
                 )
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.Companion.height(16.dp))
             content()
         }
     }
@@ -103,12 +123,12 @@ fun SurveySectionCard(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun SurveyFormTextField(
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.Companion,
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String = "",
-    keyboardType: KeyboardType = KeyboardType.Text,
+    keyboardType: KeyboardType = KeyboardType.Companion.Text,
     isError: Boolean = false,
     errorText: String = ""
 ) {
@@ -116,35 +136,35 @@ fun SurveyFormTextField(
         Text(
             text = label,
             fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (isError) SurveyErrorRed else SurveyTextDark,
-            modifier = Modifier.padding(bottom = 4.dp)
+            fontWeight = FontWeight.Companion.Medium,
+            color = if (isError) ErrorRed else TextDark,
+            modifier = Modifier.Companion.padding(bottom = 4.dp)
         )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = Color(0xFFBDBDBD), fontSize = 13.sp) },
+            placeholder = { Text(placeholder, color = HintGray, fontSize = 13.sp) },
             isError = isError,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            modifier = Modifier.Companion.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
                 keyboardType = keyboardType
             ),
-            shape = RoundedCornerShape(10.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SurveyGreenPrimary,
-                unfocusedBorderColor = Color(0xFFE0E0E0),
-                errorBorderColor = SurveyErrorRed,
-                cursorColor = SurveyGreenPrimary
+                focusedBorderColor = PrimaryGreen,
+                unfocusedBorderColor = LightDivider,
+                errorBorderColor = ErrorRed,
+                cursorColor = PrimaryGreen
             ),
-            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = SurveyTextDark)
+            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = TextDark)
         )
         if (isError && errorText.isNotBlank()) {
             Text(
                 text = errorText,
-                color = SurveyErrorRed,
+                color = ErrorRed,
                 fontSize = 11.sp,
-                modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                modifier = Modifier.Companion.padding(start = 4.dp, top = 2.dp)
             )
         }
     }
@@ -155,7 +175,7 @@ fun SurveyFormTextField(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun SurveyFormDropdown(
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.Companion,
     label: String,
     options: List<String>,
     selected: String,
@@ -169,40 +189,40 @@ fun SurveyFormDropdown(
         Text(
             text = label,
             fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (isError) SurveyErrorRed else SurveyTextDark,
-            modifier = Modifier.padding(bottom = 4.dp)
+            fontWeight = FontWeight.Companion.Medium,
+            color = if (isError) ErrorRed else TextDark,
+            modifier = Modifier.Companion.padding(bottom = 4.dp)
         )
         Box {
             OutlinedTextField(
                 value = selected,
                 onValueChange = {},
                 readOnly = true,
-                placeholder = { Text("Select an option", color = Color(0xFFBDBDBD), fontSize = 13.sp) },
+                placeholder = { Text("Select an option", color = HintGray, fontSize = 13.sp) },
                 trailingIcon = {
                     IconButton(onClick = { expanded = !expanded }) {
                         Icon(
                             Icons.Default.ArrowDropDown,
                             contentDescription = null,
-                            tint = if (isError) SurveyErrorRed else SurveyGreenPrimary
+                            tint = if (isError) ErrorRed else PrimaryGreen
                         )
                     }
                 },
                 isError = isError,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.Companion.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = SurveyGreenPrimary,
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    errorBorderColor = SurveyErrorRed,
-                    cursorColor = SurveyGreenPrimary
+                    focusedBorderColor = PrimaryGreen,
+                    unfocusedBorderColor = LightDivider,
+                    errorBorderColor = ErrorRed,
+                    cursorColor = PrimaryGreen
                 ),
-                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = SurveyTextDark)
+                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = TextDark)
             )
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(SurveyCardWhite)
+                modifier = Modifier.Companion.background(Color.Companion.White)
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
@@ -210,8 +230,8 @@ fun SurveyFormDropdown(
                             Text(
                                 option,
                                 fontSize = 14.sp,
-                                color = if (option == selected) SurveyGreenPrimary else SurveyTextDark,
-                                fontWeight = if (option == selected) FontWeight.SemiBold else FontWeight.Normal
+                                color = if (option == selected) PrimaryGreen else TextDark,
+                                fontWeight = if (option == selected) FontWeight.Companion.SemiBold else FontWeight.Companion.Normal
                             )
                         },
                         onClick = {
@@ -225,9 +245,9 @@ fun SurveyFormDropdown(
         if (isError && errorText.isNotBlank()) {
             Text(
                 text = errorText,
-                color = SurveyErrorRed,
+                color = ErrorRed,
                 fontSize = 11.sp,
-                modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                modifier = Modifier.Companion.padding(start = 4.dp, top = 2.dp)
             )
         }
     }
@@ -244,27 +264,32 @@ fun SurveyFormToggle(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 12.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (checked) Color(0xFFE8F5E9) else Color(0xFFFAFAFA)
+            containerColor = if (checked) GreenSurface else Color(0xFFFAFAFA)
         ),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
-            modifier = Modifier
+            modifier = Modifier.Companion
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Companion.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SurveyTextDark)
+            Column(modifier = Modifier.Companion.weight(1f)) {
+                Text(
+                    label,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Companion.Medium,
+                    color = TextDark
+                )
                 if (description.isNotBlank()) {
                     Text(
                         description,
                         fontSize = 11.sp,
-                        color = SurveyTextGray,
-                        modifier = Modifier.padding(top = 2.dp)
+                        color = TextGray,
+                        modifier = Modifier.Companion.padding(top = 2.dp)
                     )
                 }
             }
@@ -272,10 +297,10 @@ fun SurveyFormToggle(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = SurveyCardWhite,
-                    checkedTrackColor = SurveyGreenPrimary,
-                    uncheckedThumbColor = SurveyCardWhite,
-                    uncheckedTrackColor = Color(0xFFBDBDBD)
+                    checkedThumbColor = Color.Companion.White,
+                    checkedTrackColor = PrimaryGreen,
+                    uncheckedThumbColor = Color.Companion.White,
+                    uncheckedTrackColor = HintGray
                 )
             )
         }
@@ -288,14 +313,14 @@ fun SurveyFormToggle(
 @Composable
 fun SurveyInfoHint(text: String) {
     Row(
-        modifier = Modifier
+        modifier = Modifier.Companion
             .fillMaxWidth()
-            .background(Color(0xFFE8F5E9), RoundedCornerShape(8.dp))
+            .background(GreenSurface, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Companion.CenterVertically
     ) {
         Text("ℹ️", fontSize = 14.sp)
-        Spacer(Modifier.width(8.dp))
-        Text(text, fontSize = 12.sp, color = SurveyGreenDark)
+        Spacer(Modifier.Companion.width(8.dp))
+        Text(text, fontSize = 12.sp, color = DarkGreen)
     }
 }
