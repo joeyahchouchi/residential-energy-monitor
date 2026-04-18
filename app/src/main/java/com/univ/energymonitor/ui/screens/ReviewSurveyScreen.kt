@@ -66,9 +66,7 @@ import com.univ.energymonitor.ui.theme.WarningOrange
 import com.univ.energymonitor.ui.theme.WarningSurface
 import com.univ.energymonitor.ui.components.*
 import androidx.compose.runtime.*
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewSurveyScreen(
@@ -86,36 +84,23 @@ fun ReviewSurveyScreen(
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = PrimaryGreen
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PrimaryGreen)
                     }
                 },
                 title = {
                     Column {
-                        Text(
-                            "Household Survey",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Companion.Bold,
-                            color = DarkGreen
-                        )
-                        Text(
-                            "Step 6 of 6 – Review & Submit",
-                            fontSize = 12.sp,
-                            color = TextGray
-                        )
+                        Text("Household Survey", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
+                        Text("Step 6 of 6 – Review & Submit", fontSize = 12.sp, color = TextGray)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Companion.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
         containerColor = BackgroundGray
     ) { innerPadding ->
 
         Column(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
@@ -126,11 +111,10 @@ fun ReviewSurveyScreen(
             SurveyStepProgressBar(currentStep = 6, totalSteps = 6)
 
             SurveyInfoHint(
-                text = "Please review all your answers below. " +
-                        "Tap \"Edit\" to go back and change any section."
+                text = "Please review all your answers below. Tap \"Edit\" to go back and change any section."
             )
 
-            // ── Step 1 Summary: House Information ────────────────────────────
+            // ── Step 1 Summary: House Information ────────────────────────
             ReviewSectionCard(
                 title = "🏠  House Information",
                 stepNumber = 1,
@@ -142,10 +126,12 @@ fun ReviewSurveyScreen(
                     ReviewRow("Location", h.location)
                     ReviewRow("Type", h.houseType)
                     ReviewRow("Floor", h.floorNumber)
+                    ReviewRow("Building Age", h.buildingAge)
                     ReviewRow("Area", "${h.totalAreaM2} m²")
                     ReviewRow("Rooms", h.numberOfRooms)
                     ReviewRow("Occupants", h.numberOfOccupants)
-                    ReviewRow("Wall", "${h.wallMaterial} · ${h.wallThickness}")
+                    ReviewRow("External Wall", "${h.wallMaterial} · ${h.wallThickness}")
+                    ReviewRow("Interior Wall", h.interiorWallMaterial)
                     ReviewRow("Glass", h.glassType)
                     ReviewRow("Roof Exposure", h.roofExposure)
                     ReviewRow("Insulation", h.insulationLevel)
@@ -154,8 +140,7 @@ fun ReviewSurveyScreen(
                 }
             }
 
-            // ── Step 2 Summary: HVAC & Water Heating ─────────────────────────
-            // ── Step 2 Summary: HVAC & Water Heating ─────────────────────────
+            // ── Step 2 Summary: HVAC & Water Heating ─────────────────────
             ReviewSectionCard(
                 title = "❄️  HVAC & Water Heating",
                 stepNumber = 2,
@@ -163,27 +148,81 @@ fun ReviewSurveyScreen(
             ) {
                 val v = surveyData.hvacInfo
                 if (v != null) {
+                    // Cooling
                     ReviewRow("AC Units", v.numberOfAcUnits)
                     v.acUnits.forEachIndexed { index, unit ->
                         ReviewRow("AC ${index + 1} Room", unit.roomName)
                         ReviewRow("AC ${index + 1} Room Size", "${unit.roomSizeM2} m²")
-                        ReviewRow("AC ${index + 1} Capacity", "${unit.capacityValue} ${unit.capacityUnit}")
-                        if (unit.knowsCop) {
+                        ReviewRow("AC ${index + 1} Type", unit.acType)
+                        if (unit.capacityValue.isNotBlank()) {
+                            ReviewRow("AC ${index + 1} Capacity", "${unit.capacityValue} ${unit.capacityUnit}")
+                        }
+                        ReviewRow("AC ${index + 1} COP Method", unit.copMethod)
+                        if (unit.copMethod == "I know the COP") {
                             ReviewRow("AC ${index + 1} COP", unit.cop)
-                        } else {
-                            ReviewRow("AC ${index + 1} Year", unit.acYear)
+                        }
+                        if (unit.copMethod == "I know the AC year") {
+                            ReviewRow("AC ${index + 1} AC Age", unit.acYear)
+                        }
+                        ReviewRow("AC ${index + 1} Hours/Day", "${unit.dailyUsageHours} hrs")
+                        ReviewRow("AC ${index + 1} Days/Year", "${unit.daysPerYear} days")
+                    }
+
+                    // Heating
+                    ReviewRow("Heating Type", v.heatingSystemType)
+                    when (v.heatingSystemType) {
+                        "AC" -> {
+                            ReviewRow("Heating AC Units", v.numberOfHeatingAcUnits)
+                            v.heatingAcUnits.forEachIndexed { index, unit ->
+                                ReviewRow("Heat AC ${index + 1} Room", unit.roomName)
+                                ReviewRow("Heat AC ${index + 1} Size", "${unit.roomSizeM2} m²")
+                                ReviewRow("Heat AC ${index + 1} Type", unit.acType)
+                                if (unit.capacityValue.isNotBlank()) {
+                                    ReviewRow("Heat AC ${index + 1} Cap.", "${unit.capacityValue} ${unit.capacityUnit}")
+                                }
+                                ReviewRow("Heat AC ${index + 1} COP", unit.copMethod)
+                                ReviewRow("Heat AC ${index + 1} Hrs/Day", "${unit.dailyUsageHours} hrs")
+                                ReviewRow("Heat AC ${index + 1} Days/Yr", "${unit.daysPerYear} days")
+                            }
+                        }
+                        "Electric Heater" -> {
+                            ReviewRow("Heating Units", v.numberOfHeatingUnits)
+                            ReviewRow("Heater Power", "${v.heatingPowerKw} kW")
+                            ReviewRow("Hours/Day", "${v.heatingDailyUsageHours} hrs")
+                            ReviewRow("Days/Year", "${v.heatingDaysPerYear} days")
+                        }
+                        "Gas Heater" -> {
+                            ReviewRow("Gas Usage", "${v.heatingGasKgPerYear} kg/year")
+                        }
+                        "Diesel/Fuel Heater" -> {
+                            ReviewRow("Fuel Usage", "${v.heatingFuelLitersPerYear} L/year")
                         }
                     }
-                    ReviewRow("Heating", v.heatingSystemType)
-                    if (v.heatingSystemType != "None") {
-                        ReviewRow("Heating Units", v.numberOfHeatingUnits)
-                        ReviewRow("Heating Use", "${v.heatingDailyUsageHours} hrs/day")
-                    }
+
+                    // Water Heating
                     ReviewRow("Water Heater", v.waterHeaterType)
-                    if (v.waterHeaterType != "None") {
-                        ReviewRow("Heater Power", "${v.waterHeaterPowerKw} kW")
-                        ReviewRow("Heater Use", "${v.waterHeaterDailyHours} hrs/day")
-                        ReviewRow("Tank Size", "${v.waterTankSizeLiters} L")
+                    if (v.waterHeaterType != "None" && v.waterHeaterType.isNotBlank()) {
+                        ReviewRow("Tank Size", v.waterTankSizeLiters)
+                        ReviewRow("Insulated", v.waterTankInsulated)
+                    }
+                    when (v.waterHeaterType) {
+                        "Electrical Resistance" -> {
+                            ReviewRow("Heater Power", "${v.waterHeaterPowerKw} kW")
+                            ReviewRow("Hours/Day", "${v.waterHeaterDailyHours} hrs")
+                            ReviewRow("Days/Year", "${v.waterHeaterDaysPerYear} days")
+                        }
+                        "Solar Heater" -> {
+                            ReviewRow("Backup Type", v.solarWaterBackupType)
+                            if (v.solarWaterBackupType != "None" && v.solarWaterBackupType.isNotBlank()) {
+                                ReviewRow("Backup Usage", "${v.solarWaterBackupHoursPerDay} hrs/day")
+                            }
+                        }
+                        "Gas Tank" -> {
+                            ReviewRow("Gas Usage", "${v.gasTankKgPerYear} kg/year")
+                        }
+                        "Fuel Heating" -> {
+                            ReviewRow("Fuel Usage", "${v.fuelLitersPerYear} L/year")
+                        }
                     }
                 } else {
                     ReviewEmpty()
@@ -198,26 +237,36 @@ fun ReviewSurveyScreen(
             ) {
                 val l = surveyData.lightingInfo
                 if (l != null) {
-                    ReviewRow("Indoor Lamps", l.numberOfIndoorLamps)
-                    l.indoorLamps.forEachIndexed { index, lamp ->
-                        ReviewRow(
-                            "Lamp ${index + 1}",
-                            "${lamp.roomName} · ${lamp.bulbType} · ${lamp.powerWatts}W · ${lamp.dailyUsageHours}h${if (lamp.isDimmable) " · Dim" else ""}"
-                        )
+                    ReviewRow("Direct Lamps", l.numberOfDirectLamps)
+                    if ((l.numberOfDirectLamps.toIntOrNull() ?: 0) > 0) {
+                        ReviewRow("Direct Types", l.numberOfDirectTypes)
+                        l.directLampSamples.forEachIndexed { i, lamp ->
+                            ReviewRow(
+                                "Direct ${i + 1}",
+                                "${lamp.roomName} · ${lamp.bulbType} · ${lamp.powerWatts}W · ${lamp.dailyUsageHours}h${if (lamp.isDimmable) " · Dim" else ""}"
+                            )
+                        }
+                    }
+                    ReviewRow("Indirect Lighting", if (l.hasIndirectLighting) "Yes (${l.numberOfIndirectRooms} rooms)" else "No")
+                    if (l.hasIndirectLighting) {
+                        l.indirectRooms.forEachIndexed { i, room ->
+                            ReviewRow(
+                                "Indirect ${i + 1}",
+                                "${room.roomName} · ${room.lengthMeters}m · ${room.powerWatts}W · ${room.dailyUsageHours}h"
+                            )
+                        }
                     }
                     ReviewRow("Outdoor Lighting", if (l.hasOutdoorLighting) "Yes (${l.numberOfOutdoorLamps})" else "No")
                     if (l.hasOutdoorLighting) {
-                        l.outdoorLamps.forEachIndexed { index, lamp ->
-                            ReviewRow(
-                                "Outdoor ${index + 1}",
-                                "${lamp.bulbType} · ${lamp.powerWatts}W · ${lamp.dailyUsageHours}h"
-                            )
+                        l.outdoorLamps.forEachIndexed { i, lamp ->
+                            ReviewRow("Outdoor ${i + 1}", "${lamp.powerWatts}W · ${lamp.dailyUsageHours}h")
                         }
                     }
                 } else {
                     ReviewEmpty()
                 }
             }
+
             // ── Step 4 Summary: Appliances ───────────────────────────────
             ReviewSectionCard(
                 title = "🔌  Appliances & Loads",
@@ -248,7 +297,7 @@ fun ReviewSurveyScreen(
                 }
             }
 
-            // ── Step 5 Summary: Electricity Supply Sources ───────────────────
+            // ── Step 5 Summary: Electricity Supply Sources ───────────────
             ReviewSectionCard(
                 title = "⚡  Electricity Supply Sources",
                 stepNumber = 5,
@@ -273,32 +322,37 @@ fun ReviewSurveyScreen(
                         ReviewRow("Solar Capacity", c.solarCapacity)
                         ReviewRow("Battery Storage", c.solarHasBattery)
                     }
+                    if (c.usesEdl && c.monthlyEdlBill.isNotBlank()) {
+                        ReviewRow("Monthly EDL Bill", "$${c.monthlyEdlBill}")
+                    }
+                    if (c.usesGenerator && c.monthlyGeneratorBill.isNotBlank()) {
+                        ReviewRow("Monthly Generator Bill", "$${c.monthlyGeneratorBill}")
+                    }
+                    if (c.usesSolar && c.solarSystemCost.isNotBlank()) {
+                        ReviewRow("Solar Installation Cost", "$${c.solarSystemCost}")
+                    }
                 } else {
                     ReviewEmpty()
                 }
             }
-            // ── Final Notes & Confirmation ───────────────────────────────────
+            // ── Final Notes & Confirmation ───────────────────────────────
             SurveySectionCard(title = "📝  Final Notes & Confirmation") {
 
-                Column(modifier = Modifier.Companion.padding(bottom = 12.dp)) {
+                Column(modifier = Modifier.padding(bottom = 12.dp)) {
                     Text(
                         text = "Additional Notes (optional)",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Companion.Medium,
+                        fontWeight = FontWeight.Medium,
                         color = TextDark,
-                        modifier = Modifier.Companion.padding(bottom = 4.dp)
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
                     OutlinedTextField(
                         value = state.finalNotes,
                         onValueChange = { state = state.copy(finalNotes = it) },
                         placeholder = {
-                            Text(
-                                "e.g. house recently renovated, new AC installed…",
-                                color = HintGray,
-                                fontSize = 13.sp
-                            )
+                            Text("e.g. house recently renovated, new AC installed…", color = HintGray, fontSize = 13.sp)
                         },
-                        modifier = Modifier.Companion
+                        modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp),
                         shape = RoundedCornerShape(10.dp),
@@ -308,10 +362,7 @@ fun ReviewSurveyScreen(
                             unfocusedBorderColor = LightDivider,
                             cursorColor = PrimaryGreen
                         ),
-                        textStyle = LocalTextStyle.current.copy(
-                            fontSize = 14.sp,
-                            color = TextDark
-                        )
+                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = TextDark)
                     )
                 }
 
@@ -326,98 +377,62 @@ fun ReviewSurveyScreen(
 
                 if (state.showErrors && !state.confirmAccuracy) {
                     Row(
-                        modifier = Modifier.Companion
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                ErrorSurface,
-                                androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                            )
+                            .background(ErrorSurface, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.Companion.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = ErrorRed,
-                            modifier = Modifier.Companion.size(16.dp)
-                        )
-                        Spacer(Modifier.Companion.width(8.dp))
-                        Text(
-                            "Please confirm the data is accurate before submitting.",
-                            fontSize = 12.sp,
-                            color = ErrorRed
-                        )
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Please confirm the data is accurate before submitting.", fontSize = 12.sp, color = ErrorRed)
                     }
                 }
             }
 
-            // ── Navigation Buttons ───────────────────────────────────────────
+            // ── Navigation Buttons ───────────────────────────────────────
             Row(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
                     onClick = onBackClick,
-                    modifier = Modifier.Companion.weight(1f).height(52.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        null,
-                        modifier = Modifier.Companion.size(18.dp)
-                    )
-                    Spacer(Modifier.Companion.width(6.dp))
-                    Text(
-                        "BACK",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Companion.Bold,
-                        letterSpacing = 0.8.sp
-                    )
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("BACK", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 }
-
                 OutlinedButton(
                     onClick = { onSaveDraft(state) },
-                    modifier = Modifier.Companion.weight(1f).height(52.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
                 ) {
-                    Icon(Icons.Default.Save, null, modifier = Modifier.Companion.size(18.dp))
-                    Spacer(Modifier.Companion.width(6.dp))
-                    Text(
-                        "DRAFT",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Companion.Bold,
-                        letterSpacing = 0.8.sp
-                    )
+                    Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("DRAFT", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 }
-
                 Button(
                     onClick = {
                         if (state.isValid()) onSubmit(state)
                         else state = state.copy(showErrors = true)
                     },
-                    modifier = Modifier.Companion.weight(1f).height(52.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = WarningOrange)
                 ) {
-                    Text(
-                        "SUBMIT",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Companion.Bold,
-                        letterSpacing = 0.8.sp
-                    )
+                    Text("SUBMIT", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 }
             }
 
-            Spacer(Modifier.Companion.height(16.dp))
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Review Section Card — like SurveySectionCard but with an Edit button
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ReviewSectionCard(
     title: String,
@@ -426,67 +441,43 @@ private fun ReviewSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier.Companion.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Companion.White),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(modifier = Modifier.Companion.padding(20.dp)) {
-
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
-                modifier = Modifier.Companion.fillMaxWidth(),
-                verticalAlignment = Alignment.Companion.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.Companion
+                    modifier = Modifier
                         .width(4.dp)
                         .height(20.dp)
-                        .background(
-                            PrimaryGreen,
-                            androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
-                        )
+                        .background(PrimaryGreen, RoundedCornerShape(2.dp))
                 )
-                Spacer(Modifier.Companion.width(10.dp))
-                Text(
-                    title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Companion.Bold,
-                    color = DarkGreen,
-                    modifier = Modifier.Companion.weight(1f)
-                )
+                Spacer(Modifier.width(10.dp))
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkGreen, modifier = Modifier.weight(1f))
                 TextButton(
                     onClick = onEditClick,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "Edit Step $stepNumber",
-                        tint = PrimaryGreen,
-                        modifier = Modifier.Companion.size(14.dp)
-                    )
-                    Spacer(Modifier.Companion.width(4.dp))
-                    Text(
-                        "Edit",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Companion.SemiBold,
-                        color = PrimaryGreen
-                    )
+                    Icon(Icons.Default.Edit, contentDescription = "Edit Step $stepNumber", tint = PrimaryGreen, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Edit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PrimaryGreen)
                 }
             }
-
-            Spacer(Modifier.Companion.height(12.dp))
+            Spacer(Modifier.height(12.dp))
             content()
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Review Row — single label + value pair
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ReviewRow(label: String, value: String) {
     Row(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -494,44 +485,32 @@ private fun ReviewRow(label: String, value: String) {
         Text(
             text = label,
             fontSize = 13.sp,
-            fontWeight = FontWeight.Companion.Medium,
+            fontWeight = FontWeight.Medium,
             color = TextGray,
-            modifier = Modifier.Companion.weight(0.4f)
+            modifier = Modifier.weight(0.4f)
         )
         Text(
             text = value.ifBlank { "—" },
             fontSize = 13.sp,
             color = TextDark,
-            textAlign = TextAlign.Companion.End,
-            modifier = Modifier.Companion.weight(0.6f)
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.6f)
         )
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Review Empty — shown when a step hasn't been completed
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ReviewEmpty() {
     Row(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
-            .background(WarningSurface, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .background(WarningSurface, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.Companion.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            Icons.Default.Warning,
-            contentDescription = null,
-            tint = WarningOrange,
-            modifier = Modifier.Companion.size(16.dp)
-        )
-        Spacer(Modifier.Companion.width(8.dp))
-        Text(
-            "This section has not been completed yet. Tap Edit to fill it in.",
-            fontSize = 12.sp,
-            color = WarningOrange
-        )
+        Icon(Icons.Default.Warning, contentDescription = null, tint = WarningOrange, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("This section has not been completed yet. Tap Edit to fill it in.", fontSize = 12.sp, color = WarningOrange)
     }
 }
 

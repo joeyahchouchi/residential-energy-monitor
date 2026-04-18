@@ -1,5 +1,6 @@
 package com.univ.energymonitor.domain.model
-
+import kotlinx.serialization.Serializable
+@Serializable
 data class ConsumptionInfo(
     val edlHoursPerDay: String,
     val usesEdl: Boolean,
@@ -9,5 +10,8 @@ data class ConsumptionInfo(
     val usesNone: Boolean,
     val generatorSubscriptionType: String,
     val solarCapacity: String,
-    val solarHasBattery: String
+    val solarHasBattery: String,
+    val monthlyEdlBill: String,
+    val monthlyGeneratorBill: String,
+    val solarSystemCost: String
 )

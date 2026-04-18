@@ -1,5 +1,6 @@
 package com.univ.energymonitor.domain.model
-
+import kotlinx.serialization.Serializable
+@Serializable
 data class CategoryResult(
     val name: String,
     val dailyKwh: Double,
@@ -7,7 +8,7 @@ data class CategoryResult(
     val yearlyCostUsd: Double,
     val yearlyCo2Kg: Double
 )
-
+@Serializable
 data class EnergyReport(
     val hvacCooling: CategoryResult,
     val hvacHeating: CategoryResult,

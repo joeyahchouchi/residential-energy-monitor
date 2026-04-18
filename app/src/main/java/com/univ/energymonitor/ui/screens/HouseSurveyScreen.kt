@@ -125,6 +125,20 @@ fun HouseSurveyScreen(
                     isError = state.showErrors && state.floorNumber.isBlank(),
                     errorText = "Required"
                 )
+                SurveyFormDropdown(
+                    label = "Building Age",
+                    options = listOf(
+                        "before 2000",
+                        "2000–2012" ,
+                        "2012–2015" ,
+                        "2015–2020" ,
+                         "After 2020"
+                    ),
+                    selected = state.buildingAge,
+                    onSelected = { state = state.copy(buildingAge = it) },
+                    isError = state.showErrors && state.buildingAge.isBlank(),
+                    errorText = "Required"
+                )
                 SurveyFormTextField(
                     label = "Total Area (m²)",
                     value = state.totalAreaM2,
@@ -166,10 +180,26 @@ fun HouseSurveyScreen(
                     label = "External Wall Material",
                     options = listOf("Cement", "Pumice", "Don't know/Other"),
                     selected = state.wallMaterial,
-                    onSelected = { state = state.copy(wallMaterial = it,wallThickness = "" ) },
+                    onSelected = {
+                        state = state.copy(
+                            wallMaterial = it,
+                            wallThickness = ""
+                        )
+                    },
                     isError = state.showErrors && state.wallMaterial.isBlank(),
                     errorText = "Required"
                 )
+
+                SurveyFormDropdown(
+                    label = "Interior Wall Material",
+                    options = listOf("Gypsum Board", "Concrete Block", "Plaster on Brick", "Don't know/Other"),
+                    selected = state.interiorWallMaterial,
+                    onSelected = { state = state.copy(interiorWallMaterial = it) },
+                    isError = state.showErrors && state.interiorWallMaterial.isBlank(),
+                    errorText = "Required"
+                )
+                SurveyInfoHint(text = "💡 If you're unsure about the interior wall, most Lebanese apartments use plaster on brick or concrete block.")
+
                 SurveyFormDropdown(
                     label = "Wall Thickness",
                     options = when (state.wallMaterial) {
@@ -178,29 +208,33 @@ fun HouseSurveyScreen(
                         else -> listOf("15 cm", "20 cm", "25 cm", "1 cm", "1.5 cm", "2 cm")
                     },
                     selected = state.wallThickness,
-                    onSelected = { state = state.copy(wallThickness = it, ) },
+                    onSelected = { state = state.copy(wallThickness = it) },
                     isError = state.showErrors && state.wallThickness.isBlank(),
                     errorText = "Required"
                 )
+                SurveyInfoHint(text = "💡 If unsure, check the depth of a window frame or door frame — it usually matches the wall thickness.")
+
                 SurveyFormDropdown(
                     label = "Glass Type",
-                    options = listOf("Single glazing", "Double glazing","Triple glazing" ,"Unknown"),
+                    options = listOf("Single glazing", "Double glazing", "Triple glazing", "Unknown"),
                     selected = state.glassType,
                     onSelected = { state = state.copy(glassType = it) },
                     isError = state.showErrors && state.glassType.isBlank(),
                     errorText = "Required"
                 )
+                SurveyInfoHint(text = "💡 If unsure, check the depth of a window frame or door frame — single glazing is thin (~4mm), double glazing is thicker (~20mm) with a visible gap between panes.")
+
                 SurveyFormDropdown(
                     label = "Roof Exposure",
-                    options = listOf("Apartment", "Roof Top", "Brick"),
+                    options = listOf("Apartment", "Roof Top", "brick-roofed house"),
                     selected = state.roofExposure,
                     onSelected = { state = state.copy(roofExposure = it) },
                     isError = state.showErrors && state.roofExposure.isBlank(),
                     errorText = "Required"
                 )
                 SurveyFormDropdown(
-                    label = "Is There Insulation?",
-                    options = listOf("Yes","No","I don't know"),
+                    label = "Has Insulation?",
+                    options = listOf("Yes", "No"),
                     selected = state.insulationLevel,
                     onSelected = { state = state.copy(insulationLevel = it) },
                     isError = state.showErrors && state.insulationLevel.isBlank(),

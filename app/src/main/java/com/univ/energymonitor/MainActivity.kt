@@ -135,9 +135,11 @@ fun AppRoot() {
                         houseType = state.houseType,
                         floorNumber = state.floorNumber,
                         totalAreaM2 = state.totalAreaM2,
+                        buildingAge = state.buildingAge,
                         numberOfRooms = state.numberOfRooms,
                         numberOfOccupants = state.numberOfOccupants,
                         wallMaterial = state.wallMaterial,
+                        interiorWallMaterial = state.interiorWallMaterial,
                         wallThickness = state.wallThickness,
                         glassType = state.glassType,
                         roofExposure = state.roofExposure,
@@ -154,6 +156,7 @@ fun AppRoot() {
 
         Screen.SurveyStep2 -> HvacSurveyScreen(
             initialState = step2State,
+            buildingAge = step1State.buildingAge,
             onBackClick = { screen = Screen.SurveyStep1 },
             onNextClick = { state ->
                 step2State = state
@@ -162,14 +165,24 @@ fun AppRoot() {
                         numberOfAcUnits = state.numberOfAcUnits,
                         acUnits = state.acUnits,
                         heatingSystemType = state.heatingSystemType,
-                        numberOfHeatingUnits = state.numberOfHeatingUnits,
-                        heatingDailyUsageHours = state.heatingDailyUsageHours,
                         numberOfHeatingAcUnits = state.numberOfHeatingAcUnits,
                         heatingAcUnits = state.heatingAcUnits,
+                        numberOfHeatingUnits = state.numberOfHeatingUnits,
+                        heatingPowerKw = state.heatingPowerKw,
+                        heatingDailyUsageHours = state.heatingDailyUsageHours,
+                        heatingDaysPerYear = state.heatingDaysPerYear,
+                        heatingGasKgPerYear = state.heatingGasKgPerYear,
+                        heatingFuelLitersPerYear = state.heatingFuelLitersPerYear,
                         waterHeaterType = state.waterHeaterType,
+                        waterTankSizeLiters = state.waterTankSizeLiters,
+                        waterTankInsulated = state.waterTankInsulated,
                         waterHeaterPowerKw = state.waterHeaterPowerKw,
                         waterHeaterDailyHours = state.waterHeaterDailyHours,
-                        waterTankSizeLiters = state.waterTankSizeLiters
+                        waterHeaterDaysPerYear = state.waterHeaterDaysPerYear,
+                        solarWaterBackupType = state.solarWaterBackupType,
+                        solarWaterBackupHoursPerDay = state.solarWaterBackupHoursPerDay,
+                        gasTankKgPerYear = state.gasTankKgPerYear,
+                        fuelLitersPerYear = state.fuelLitersPerYear
                     )
                 )
                 navigateAfterSave(Screen.SurveyStep3)
@@ -187,8 +200,12 @@ fun AppRoot() {
                 step3State = state
                 surveyData = surveyData.copy(
                     lightingInfo = LightingInfo(
-                        numberOfIndoorLamps = state.numberOfIndoorLamps,
-                        indoorLamps = state.indoorLamps,
+                        numberOfDirectLamps = state.numberOfDirectLamps,
+                        numberOfDirectTypes = state.numberOfDirectTypes,
+                        directLampSamples = state.directLampSamples,
+                        hasIndirectLighting = state.hasIndirectLighting,
+                        numberOfIndirectRooms = state.numberOfIndirectRooms,
+                        indirectRooms = state.indirectRooms,
                         hasOutdoorLighting = state.hasOutdoorLighting,
                         numberOfOutdoorLamps = state.numberOfOutdoorLamps,
                         outdoorLamps = state.outdoorLamps
@@ -201,6 +218,7 @@ fun AppRoot() {
                 screen = Screen.Dashboard
             }
         )
+
         Screen.SurveyStep4 -> ApplianceSurveyScreen(
             initialState = step4State,
             onBackClick = { screen = Screen.SurveyStep3 },
@@ -219,6 +237,7 @@ fun AppRoot() {
                 screen = Screen.Dashboard
             }
         )
+
         Screen.SurveyStep5 -> ConsumptionSurveyScreen(
             initialState = step5State,
             onBackClick = { screen = Screen.SurveyStep4 },
@@ -234,7 +253,10 @@ fun AppRoot() {
                         usesNone = state.usesNone,
                         generatorSubscriptionType = state.generatorSubscriptionType,
                         solarCapacity = state.solarCapacity,
-                        solarHasBattery = state.solarHasBattery
+                        solarHasBattery = state.solarHasBattery,
+                        monthlyEdlBill = state.monthlyEdlBill,
+                        monthlyGeneratorBill = state.monthlyGeneratorBill,
+                        solarSystemCost = state.solarSystemCost
                     )
                 )
                 navigateAfterSave(Screen.SurveyStep6)
@@ -282,16 +304,11 @@ fun AppRoot() {
             }
         )
 
-        Screen.Results -> {
-            energyReport?.let { report ->
-                ResultsScreen(
-                    report = report,
-                    houseName = surveyData.houseInfo?.houseName ?: "Household",
-                    onBackToDashboard = {
-                        screen = Screen.Dashboard
-                    }
-                )
-            }
-        }
+        Screen.Results -> ResultsScreen(
+            report = energyReport!!,
+            surveyData = surveyData,
+            houseName = step1State.houseName.ifBlank { "Household" },
+            onBackToDashboard = { screen = Screen.Dashboard }
+        )
     }
 }

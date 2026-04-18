@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -124,7 +125,11 @@ fun ConsumptionSurveyScreen(
                     description = "Électricité du Liban (public grid)",
                     checked = state.usesEdl,
                     onCheckedChange = {
-                        state = state.copy(usesEdl = it, usesNone = if (it) false else state.usesNone)
+                        state = state.copy(
+                            usesEdl = it,
+                            usesNone = if (it) false else state.usesNone,
+                            monthlyEdlBill = if (!it) "" else state.monthlyEdlBill
+                        )
                     }
                 )
                 SurveyFormToggle(
@@ -135,7 +140,8 @@ fun ConsumptionSurveyScreen(
                         state = state.copy(
                             usesGenerator = it,
                             usesNone = if (it) false else state.usesNone,
-                            generatorSubscriptionType = if (!it) "" else state.generatorSubscriptionType
+                            generatorSubscriptionType = if (!it) "" else state.generatorSubscriptionType,
+                            monthlyGeneratorBill = if (!it) "" else state.monthlyGeneratorBill
                         )
                     }
                 )
@@ -148,7 +154,8 @@ fun ConsumptionSurveyScreen(
                             usesSolar = it,
                             usesNone = if (it) false else state.usesNone,
                             solarCapacity = if (!it) "" else state.solarCapacity,
-                            solarHasBattery = if (!it) "" else state.solarHasBattery
+                            solarHasBattery = if (!it) "" else state.solarHasBattery,
+                            solarSystemCost = if (!it) "" else state.solarSystemCost
                         )
                     }
                 )
@@ -157,7 +164,10 @@ fun ConsumptionSurveyScreen(
                     description = "Uninterruptible power supply or battery backup",
                     checked = state.usesUps,
                     onCheckedChange = {
-                        state = state.copy(usesUps = it, usesNone = if (it) false else state.usesNone)
+                        state = state.copy(
+                            usesUps = it,
+                            usesNone = if (it) false else state.usesNone
+                        )
                     }
                 )
                 SurveyFormToggle(
@@ -173,7 +183,10 @@ fun ConsumptionSurveyScreen(
                             usesUps = if (it) false else state.usesUps,
                             generatorSubscriptionType = if (it) "" else state.generatorSubscriptionType,
                             solarCapacity = if (it) "" else state.solarCapacity,
-                            solarHasBattery = if (it) "" else state.solarHasBattery
+                            solarHasBattery = if (it) "" else state.solarHasBattery,
+                            monthlyEdlBill = if (it) "" else state.monthlyEdlBill,
+                            monthlyGeneratorBill = if (it) "" else state.monthlyGeneratorBill,
+                            solarSystemCost = if (it) "" else state.solarSystemCost
                         )
                     }
                 )
@@ -229,6 +242,61 @@ fun ConsumptionSurveyScreen(
                 }
             }
 
+            // ── Energy Cost Information (conditional) ────────────────────
+            if (state.usesEdl || state.usesGenerator || state.usesSolar) {
+                SurveySectionCard(title = "💰  Energy Cost Information") {
+                    SurveyInfoHint(text = "Enter your average energy costs. This helps compare calculated vs actual consumption.")
+                    Spacer(Modifier.height(8.dp))
+
+                    if (state.usesEdl) {
+                        SurveyFormDropdown(
+                            label = "Average Monthly EDL Bill (USD)",
+                            options = listOf(
+                                "Less than 10 USD",
+                                "10–30 USD",
+                                "30–50 USD",
+                                "50–80 USD",
+                                "More than 80 USD"
+                            ),
+                            selected = state.monthlyEdlBill,
+                            onSelected = { state = state.copy(monthlyEdlBill = it) },
+                            isError = state.showErrors && state.monthlyEdlBill.isBlank(),
+                            errorText = "Required"
+                        )
+                    }
+
+                    if (state.usesGenerator) {
+                        SurveyFormDropdown(
+                            label = "Average Monthly Generator Bill (USD)",
+                            options = listOf(
+                                "Less than 30 USD",
+                                "30–60 USD",
+                                "60–100 USD",
+                                "100–150 USD",
+                                "150–250 USD",
+                                "More than 250 USD"
+                            ),
+                            selected = state.monthlyGeneratorBill,
+                            onSelected = { state = state.copy(monthlyGeneratorBill = it) },
+                            isError = state.showErrors && state.monthlyGeneratorBill.isBlank(),
+                            errorText = "Required"
+                        )
+                    }
+
+                    if (state.usesSolar) {
+                        SurveyFormTextField(
+                            label = "Solar Installation Cost (USD)",
+                            value = state.solarSystemCost,
+                            onValueChange = { state = state.copy(solarSystemCost = it) },
+                            placeholder = "e.g. 5000",
+                            keyboardType = KeyboardType.Decimal,
+                            isError = state.showErrors && (state.solarSystemCost.isBlank()
+                                    || state.solarSystemCost.toDoubleOrNull()?.let { it < 0 } ?: true),
+                            errorText = "Enter a valid amount"
+                        )
+                    }
+                }
+            }
             // ── Navigation Buttons ───────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -240,11 +308,7 @@ fun ConsumptionSurveyScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        null,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("BACK", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 }

@@ -1,5 +1,6 @@
 package com.univ.energymonitor.domain.model
-
+import kotlinx.serialization.Serializable
+@Serializable
 data class SurveyData(
     val houseInfo: HouseInfo? = null,
     val hvacInfo: HvacInfo? = null,

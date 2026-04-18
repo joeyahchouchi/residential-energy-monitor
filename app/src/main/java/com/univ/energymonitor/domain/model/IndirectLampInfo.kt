@@ -1,10 +1,9 @@
 package com.univ.energymonitor.domain.model
 import kotlinx.serialization.Serializable
 @Serializable
-data class LampInfo(
+data class IndirectLampInfo(
     val roomName: String = "",
-    val bulbType: String = "",
+    val lengthMeters: String = "",
     val powerWatts: String = "",
-    val dailyUsageHours: String = "",
-    val isDimmable: Boolean = false
+    val dailyUsageHours: String = ""
 )
