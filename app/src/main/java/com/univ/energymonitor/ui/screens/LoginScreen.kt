@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -39,9 +38,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -66,11 +67,10 @@ import com.univ.energymonitor.ui.theme.PrimaryGreen
 import com.univ.energymonitor.ui.theme.TextGray
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.univ.energymonitor.ui.components.*
+
 @Composable
 fun LoginScreen(
-    users: Map<String, String>,
-    onLoginSuccess: (String) -> Unit,
+    onLoginSuccess: (String, String) -> Unit,
     onCreateAccount: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -91,71 +91,65 @@ fun LoginScreen(
         if (password.length < 4) { passwordError = "Password too short"; return }
         isLoading = true
         scope.launch {
-            delay(800)
+            delay(600)
             isLoading = false
-            if (users[username.trim().lowercase()] == password) {
-                Toast.makeText(context, "Welcome, $username! ✅", Toast.LENGTH_SHORT).show()
-                onLoginSuccess(username.trim())
-            } else {
-                passwordError = "Invalid username or password"
-                password = ""
-            }
+            onLoginSuccess(username.trim(), password)
         }
     }
 
     Box(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxSize()
             .background(BackgroundGray)
     ) {
         Column(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.Companion.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.Companion.height(48.dp))
+            Spacer(Modifier.height(48.dp))
 
             Box(
-                modifier = Modifier.Companion.size(72.dp).background(PrimaryGreen, CircleShape),
-                contentAlignment = Alignment.Companion.Center
+                modifier = Modifier.size(72.dp).background(PrimaryGreen, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
                 Text("⚡", fontSize = 34.sp)
             }
 
-            Spacer(Modifier.Companion.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             Text(
                 "Lebanon Energy Monitor",
                 color = DarkGreen,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Companion.Bold,
-                textAlign = TextAlign.Companion.Center
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Text(
                 "Residential Energy Efficiency & CO₂ Tracker",
                 color = TextGray,
                 fontSize = 12.sp,
-                textAlign = TextAlign.Companion.Center,
-                modifier = Modifier.Companion.padding(top = 6.dp, bottom = 32.dp)
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 6.dp, bottom = 32.dp)
             )
 
             Card(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 elevation = CardDefaults.cardElevation(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Companion.White)
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-                Column(modifier = Modifier.Companion.padding(24.dp)) {
+                Column(modifier = Modifier.padding(24.dp)) {
 
                     Text(
                         "Sign In",
                         fontSize = 22.sp,
-                        fontWeight = FontWeight.Companion.Bold,
+                        fontWeight = FontWeight.Bold,
                         color = DarkGreen,
-                        modifier = Modifier.Companion.padding(bottom = 20.dp)
+                        modifier = Modifier.padding(bottom = 20.dp)
                     )
 
                     // Username
@@ -169,20 +163,18 @@ fun LoginScreen(
                         supportingText = if (usernameError.isNotEmpty()) {
                             { Text(usernameError, color = MaterialTheme.colorScheme.error) }
                         } else null,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Next),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = {
-                            focusManager.moveFocus(
-                                FocusDirection.Companion.Down
-                            )
+                            focusManager.moveFocus(FocusDirection.Down)
                         }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     // Password
@@ -201,24 +193,27 @@ fun LoginScreen(
                                 )
                             }
                         },
-                        visualTransformation = if (passwordVisible) VisualTransformation.Companion.None else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         isError = passwordError.isNotEmpty(),
                         supportingText = if (passwordError.isNotEmpty()) {
                             { Text(passwordError, color = MaterialTheme.colorScheme.error) }
                         } else null,
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Companion.Password,
-                            imeAction = ImeAction.Companion.Done
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
                         ),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); attemptLogin() }),
+                        keyboardActions = KeyboardActions(onDone = {
+                            focusManager.clearFocus()
+                            attemptLogin()
+                        }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     TextButton(
@@ -229,65 +224,59 @@ fun LoginScreen(
                                 Toast.LENGTH_LONG
                             ).show()
                         },
-                        modifier = Modifier.Companion.align(Alignment.Companion.End)
+                        modifier = Modifier.align(Alignment.End)
                     ) {
                         Text("Forgot password?", color = PrimaryGreen, fontSize = 12.sp)
                     }
 
-                    Spacer(Modifier.Companion.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     Button(
                         onClick = { focusManager.clearFocus(); attemptLogin() },
                         enabled = !isLoading,
-                        modifier = Modifier.Companion.fillMaxWidth().height(50.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PrimaryGreen,
                             disabledContainerColor = LightGreen
                         )
                     ) {
                         if (isLoading) CircularProgressIndicator(
-                            color = Color.Companion.White,
-                            modifier = Modifier.Companion.size(22.dp),
+                            color = Color.White,
+                            modifier = Modifier.size(22.dp),
                             strokeWidth = 2.dp
                         )
                         else Text(
                             "SIGN IN",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Companion.Bold,
+                            fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         )
                     }
 
-                    Spacer(Modifier.Companion.height(16.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     Row(
-                        modifier = Modifier.Companion.fillMaxWidth(),
-                        verticalAlignment = Alignment.Companion.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        HorizontalDivider(
-                            modifier = Modifier.Companion.weight(1f),
-                            color = LightDivider
-                        )
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = LightDivider)
                         Text("  or  ", color = IconGray, fontSize = 12.sp)
-                        HorizontalDivider(
-                            modifier = Modifier.Companion.weight(1f),
-                            color = LightDivider
-                        )
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = LightDivider)
                     }
 
-                    Spacer(Modifier.Companion.height(16.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     OutlinedButton(
                         onClick = onCreateAccount,
-                        modifier = Modifier.Companion.fillMaxWidth().height(50.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
                     ) {
                         Text(
                             "CREATE ACCOUNT",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Companion.Bold,
+                            fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         )
                     }
@@ -298,7 +287,7 @@ fun LoginScreen(
                 "Demo: admin / admin123",
                 color = IconGray,
                 fontSize = 12.sp,
-                modifier = Modifier.Companion.padding(top = 20.dp, bottom = 48.dp)
+                modifier = Modifier.padding(top = 20.dp, bottom = 48.dp)
             )
         }
     }

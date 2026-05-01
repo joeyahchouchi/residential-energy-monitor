@@ -6,23 +6,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.univ.energymonitor.domain.engine.EnergyCalculator
 import com.univ.energymonitor.domain.model.*
+import com.univ.energymonitor.ui.navigation.AnalysisType
 import com.univ.energymonitor.ui.navigation.Screen
-import com.univ.energymonitor.ui.screens.ApplianceSurveyScreen
-import com.univ.energymonitor.ui.screens.ConsumptionSurveyScreen
-import com.univ.energymonitor.ui.screens.CreateAccountScreen
-import com.univ.energymonitor.ui.screens.DashboardScreen
-import com.univ.energymonitor.ui.screens.HouseSurveyScreen
-import com.univ.energymonitor.ui.screens.HvacSurveyScreen
-import com.univ.energymonitor.ui.screens.LightingSurveyScreen
-import com.univ.energymonitor.ui.screens.LoginScreen
-import com.univ.energymonitor.ui.screens.ResultsScreen
-import com.univ.energymonitor.ui.screens.ReviewSurveyScreen
+import com.univ.energymonitor.ui.screens.*
 import com.univ.energymonitor.ui.state.*
 import com.univ.energymonitor.ui.theme.EnergyMonitorTheme
+import com.univ.energymonitor.ui.viewmodel.AuthViewModel
+import com.univ.energymonitor.ui.viewmodel.SurveyViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,23 +33,48 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppRoot() {
-
     val context = LocalContext.current
+    val authViewModel: AuthViewModel = viewModel()
+    val surveyViewModel: SurveyViewModel = viewModel()
+    val coroutineScope = rememberCoroutineScope()
 
     var screen by remember { mutableStateOf<Screen>(Screen.Login) }
-    var loggedUser by rememberSaveable { mutableStateOf("") }
+
+    val loggedUser by authViewModel.loggedUser.collectAsState()
+    val loginError by authViewModel.loginError.collectAsState()
+    val createAccountResult by authViewModel.createAccountResult.collectAsState()
+
+    LaunchedEffect(loggedUser) {
+        if (loggedUser.isNotBlank() && screen == Screen.Login) {
+            screen = Screen.Dashboard
+        }
+    }
+
+    LaunchedEffect(loginError) {
+        if (loginError.isNotBlank()) {
+            Toast.makeText(context, loginError, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(createAccountResult) {
+        when (createAccountResult) {
+            true -> {
+                Toast.makeText(context, "Account created! You can now sign in.", Toast.LENGTH_SHORT).show()
+                screen = Screen.Login
+                authViewModel.resetCreateAccountResult()
+            }
+
+            false -> {
+                Toast.makeText(context, "Username already taken.", Toast.LENGTH_SHORT).show()
+                authViewModel.resetCreateAccountResult()
+            }
+
+            null -> Unit
+        }
+    }
+
     var surveyData by remember { mutableStateOf(SurveyData()) }
     var energyReport by remember { mutableStateOf<EnergyReport?>(null) }
-
-    var users by remember {
-        mutableStateOf(
-            mutableMapOf(
-                "admin" to "admin123",
-                "engineer" to "leb2024",
-                "surveyor" to "survey1"
-            )
-        )
-    }
 
     var step1State by remember { mutableStateOf(HouseSurveyUiState()) }
     var step2State by remember { mutableStateOf(HvacSurveyUiState()) }
@@ -63,6 +83,9 @@ fun AppRoot() {
     var step5State by remember { mutableStateOf(ConsumptionSurveyUiState()) }
 
     var editingFromReview by remember { mutableStateOf(false) }
+    var editingSurveyId by remember { mutableStateOf<Long?>(null) }
+    var optimizingSurveyId by remember { mutableStateOf<Long?>(null) }
+    var selectedAnalysisType by remember { mutableStateOf(AnalysisType.KPI) }
 
     fun navigateAfterSave(nextStep: Screen) {
         screen = if (editingFromReview) {
@@ -82,15 +105,172 @@ fun AppRoot() {
         step4State = ApplianceSurveyUiState()
         step5State = ConsumptionSurveyUiState()
         editingFromReview = false
+        editingSurveyId = null
+        optimizingSurveyId = null
+        selectedAnalysisType = AnalysisType.KPI
+    }
+
+    fun loadExistingSurveyForEdit(id: Long) {
+        coroutineScope.launch {
+            val result = surveyViewModel.loadSurvey(id)
+            if (result != null) {
+                val (data, report) = result
+
+                surveyData = data
+                energyReport = report ?: EnergyCalculator.calculate(data)
+                editingSurveyId = id
+                editingFromReview = false
+
+                step1State = data.houseInfo?.let {
+                    HouseSurveyUiState(
+                        houseName = it.houseName,
+                        location = it.location,
+                        houseType = it.houseType,
+                        floorNumber = it.floorNumber,
+                        buildingAge = it.buildingAge,
+                        totalAreaM2 = it.totalAreaM2,
+                        numberOfRooms = it.numberOfRooms,
+                        numberOfOccupants = it.numberOfOccupants,
+                        glassSurfaceM2 = it.glassSurfaceM2,
+                        exposedWallSurfaceM2 = it.exposedWallSurfaceM2,
+                        numberOfWallLayers = it.numberOfWallLayers,
+                        wallLayers = it.wallLayers,
+                        glassType = it.glassType,
+                        roofExposure = it.roofExposure,
+                        insulationLevel = it.insulationLevel
+                    )
+                } ?: HouseSurveyUiState()
+
+                step2State = data.hvacInfo?.let {
+                    HvacSurveyUiState(
+                        numberOfAcUnits = it.numberOfAcUnits,
+                        acUnits = it.acUnits,
+
+                        heatingSystemType = it.heatingSystemType,
+                        numberOfHeatingAcUnits = it.numberOfHeatingAcUnits,
+                        heatingAcUnits = it.heatingAcUnits,
+                        numberOfHeatingUnits = it.numberOfHeatingUnits,
+                        heatingPowerKw = it.heatingPowerKw,
+                        heatingDailyUsageHours = it.heatingDailyUsageHours,
+                        heatingDaysPerYear = it.heatingDaysPerYear,
+                        heatingGasKgPerYear = it.heatingGasKgPerYear,
+                        heatingFuelLitersPerYear = it.heatingFuelLitersPerYear,
+                        heatedAreaM2 = it.heatedAreaM2,
+
+                        heatingEfficiencyMethod = it.heatingEfficiencyMethod,
+                        heatingEfficiencyPercent = it.heatingEfficiencyPercent,
+                        heatingInstallationYear = it.heatingInstallationYear,
+
+                        numberOfWaterHeaters = it.numberOfWaterHeaters,
+                        waterHeaters = it.waterHeaters
+                    )
+                } ?: HvacSurveyUiState()
+
+                step3State = data.lightingInfo?.let {
+                    LightingSurveyUiState(
+                        numberOfDirectLamps = it.numberOfDirectLamps,
+                        numberOfDirectTypes = it.numberOfDirectTypes,
+                        directLampSamples = it.directLampSamples,
+                        hasIndirectLighting = it.hasIndirectLighting,
+                        numberOfIndirectRooms = it.numberOfIndirectRooms,
+                        indirectRooms = it.indirectRooms,
+                        hasOutdoorLighting = it.hasOutdoorLighting,
+                        numberOfOutdoorLamps = it.numberOfOutdoorLamps,
+                        outdoorLamps = it.outdoorLamps
+                    )
+                } ?: LightingSurveyUiState()
+
+                step4State = data.applianceInfo?.let {
+                    ApplianceSurveyUiState(
+                        appliances = it.appliances,
+                        customAppliances = it.customAppliances
+                    )
+                } ?: ApplianceSurveyUiState()
+
+                step5State = data.consumptionInfo?.let {
+                    ConsumptionSurveyUiState(
+                        edlHoursPerDay = it.edlHoursPerDay,
+                        usesEdl = it.usesEdl,
+                        usesGenerator = it.usesGenerator,
+                        usesSolar = it.usesSolar,
+                        usesUps = it.usesUps,
+                        usesNone = it.usesNone,
+                        generatorSubscriptionType = it.generatorSubscriptionType,
+                        solarCapacity = it.solarCapacity,
+                        solarHasBattery = it.solarHasBattery,
+                        yearlyEdlBillUsd = it.yearlyEdlBillUsd,
+                        edlPricePerKwhUsd = it.edlPricePerKwhUsd,
+                        yearlyGeneratorBillUsd = it.yearlyGeneratorBillUsd,
+                        generatorPricePerKwhUsd = it.generatorPricePerKwhUsd,
+                        solarYearlyKwh = it.solarYearlyKwh
+                    )
+                } ?: ConsumptionSurveyUiState()
+
+                screen = Screen.SurveyStep1
+            }
+        }
+    }
+
+    fun loadExistingSurveyForView(id: Long) {
+        coroutineScope.launch {
+            val result = surveyViewModel.loadSurvey(id)
+            if (result != null) {
+                val (data, savedReport) = result
+                val report = savedReport ?: EnergyCalculator.calculate(data)
+
+                surveyData = data
+                energyReport = report
+                editingSurveyId = null
+                editingFromReview = false
+
+                step1State = HouseSurveyUiState(
+                    houseName = data.houseInfo?.houseName ?: "Household"
+                )
+
+                screen = Screen.Results
+            }
+        }
+    }
+
+    fun loadExistingSurveyForAnalysis(id: Long, type: AnalysisType) {
+        coroutineScope.launch {
+            val result = surveyViewModel.loadSurvey(id)
+            if (result != null) {
+                val (data, savedReport) = result
+                val report = savedReport ?: EnergyCalculator.calculate(data)
+
+                surveyData = data
+                energyReport = report
+                selectedAnalysisType = type
+                editingSurveyId = null
+                editingFromReview = false
+
+                step1State = HouseSurveyUiState(
+                    houseName = data.houseInfo?.houseName ?: "Household"
+                )
+
+                screen = Screen.HomeAnalysis
+            }
+        }
+    }
+
+    fun loadExistingSurveyForOptimization(id: Long) {
+        coroutineScope.launch {
+            val result = surveyViewModel.loadSurvey(id)
+            if (result != null) {
+                val (data, savedReport) = result
+                surveyData = data
+                energyReport = savedReport ?: EnergyCalculator.calculate(data)
+                optimizingSurveyId = id
+                screen = Screen.Optimization
+            }
+        }
     }
 
     when (screen) {
-
         Screen.Login -> LoginScreen(
-            users = users,
-            onLoginSuccess = { user ->
-                loggedUser = user
-                screen = Screen.Dashboard
+            onLoginSuccess = { username, password ->
+                authViewModel.login(username, password)
             },
             onCreateAccount = {
                 screen = Screen.CreateAccount
@@ -98,34 +278,136 @@ fun AppRoot() {
         )
 
         Screen.CreateAccount -> CreateAccountScreen(
-            existingUsernames = users.keys,
             onAccountCreated = { newUser ->
-                users = users.toMutableMap().apply {
-                    put(newUser.username, newUser.password)
-                }
-                screen = Screen.Login
+                authViewModel.createAccount(
+                    username = newUser.username,
+                    password = newUser.password,
+                    fullName = newUser.fullName,
+                    email = newUser.email
+                )
             },
             onBackToLogin = {
                 screen = Screen.Login
             }
         )
 
-        Screen.Dashboard -> DashboardScreen(
-            username = loggedUser,
-            onStartSurvey = {
-                resetSurvey()
-                screen = Screen.SurveyStep1
-            },
-            onLogout = {
-                loggedUser = ""
-                resetSurvey()
-                screen = Screen.Login
+        Screen.Dashboard -> {
+            val surveyCount by surveyViewModel
+                .observeSurveyCount(loggedUser)
+                .collectAsState(initial = 0)
+
+            val avgMonthlyKwh by surveyViewModel
+                .observeAvgMonthlyKwh(loggedUser)
+                .collectAsState(initial = null)
+
+            val totalCo2 by surveyViewModel
+                .observeTotalCo2(loggedUser)
+                .collectAsState(initial = 0.0)
+
+            DashboardScreen(
+                username = loggedUser,
+                surveyCount = surveyCount,
+                avgMonthlyKwh = avgMonthlyKwh,
+                totalCo2Kg = totalCo2,
+                onStartSurvey = {
+                    resetSurvey()
+                    screen = Screen.SurveyStep1
+                },
+                onViewSavedHomes = {
+                    screen = Screen.SavedHomes
+                },
+                onLogout = {
+                    authViewModel.logout()
+                    resetSurvey()
+                    screen = Screen.Login
+                }
+            )
+        }
+
+        Screen.SavedHomes -> {
+            val surveys by surveyViewModel
+                .observeSurveys(loggedUser)
+                .collectAsState(initial = emptyList())
+
+            SavedHomesScreen(
+                surveys = surveys,
+                onBack = { screen = Screen.Dashboard },
+                onViewResults = { id -> loadExistingSurveyForView(id) },
+                onOpenAnalysis = { id, type -> loadExistingSurveyForAnalysis(id, type) },
+                onOpenOptimization = { id -> loadExistingSurveyForOptimization(id) },
+                onEditSurvey = { id -> loadExistingSurveyForEdit(id) },
+                onDeleteSurvey = { id -> surveyViewModel.deleteSurvey(id) }
+            )
+        }
+
+        Screen.HomeAnalysis -> {
+            val report = energyReport
+
+            if (report != null) {
+                HomeAnalysisScreen(
+                    analysisType = selectedAnalysisType,
+                    report = report,
+                    surveyData = surveyData,
+                    houseName = surveyData.houseInfo?.houseName
+                        ?: step1State.houseName.ifBlank { "Household" },
+                    onBack = {
+                        screen = Screen.SavedHomes
+                    },
+                    onViewFullResults = {
+                        screen = Screen.Results
+                    }
+                )
+            } else {
+                screen = Screen.SavedHomes
             }
-        )
+        }
+
+        Screen.Optimization -> {
+            val report = energyReport
+            val surveyId = optimizingSurveyId
+
+            if (report != null && surveyId != null) {
+                OptimizationScreen(
+                    surveyData = surveyData,
+                    report = report,
+                    houseName = surveyData.houseInfo?.houseName ?: "Household",
+                    onBack = {
+                        screen = Screen.SavedHomes
+                    },
+                    onPreviewOnly = { optimizedReport ->
+                        energyReport = optimizedReport
+                        screen = Screen.Results
+                    },
+                    onApplyToSavedHome = { optimizedSurveyData, optimizedReport ->
+                        surveyData = optimizedSurveyData
+                        energyReport = optimizedReport
+
+                        surveyViewModel.updateSurvey(
+                            surveyId,
+                            loggedUser,
+                            optimizedSurveyData,
+                            optimizedReport
+                        )
+
+                        Toast.makeText(context, "Optimization applied to saved home!", Toast.LENGTH_SHORT).show()
+                        screen = Screen.Results
+                    }
+                )
+            } else {
+                screen = Screen.SavedHomes
+            }
+        }
 
         Screen.SurveyStep1 -> HouseSurveyScreen(
             initialState = step1State,
-            onBackClick = { screen = Screen.Dashboard },
+            onBackClick = {
+                if (editingSurveyId != null) {
+                    resetSurvey()
+                    screen = Screen.SavedHomes
+                } else {
+                    screen = Screen.Dashboard
+                }
+            },
             onNextClick = { state ->
                 step1State = state
                 surveyData = surveyData.copy(
@@ -134,13 +416,14 @@ fun AppRoot() {
                         location = state.location,
                         houseType = state.houseType,
                         floorNumber = state.floorNumber,
-                        totalAreaM2 = state.totalAreaM2,
                         buildingAge = state.buildingAge,
+                        totalAreaM2 = state.totalAreaM2,
                         numberOfRooms = state.numberOfRooms,
                         numberOfOccupants = state.numberOfOccupants,
-                        wallMaterial = state.wallMaterial,
-                        interiorWallMaterial = state.interiorWallMaterial,
-                        wallThickness = state.wallThickness,
+                        glassSurfaceM2 = state.glassSurfaceM2,
+                        exposedWallSurfaceM2 = state.exposedWallSurfaceM2,
+                        numberOfWallLayers = state.numberOfWallLayers,
+                        wallLayers = state.wallLayers,
                         glassType = state.glassType,
                         roofExposure = state.roofExposure,
                         insulationLevel = state.insulationLevel
@@ -164,6 +447,7 @@ fun AppRoot() {
                     hvacInfo = HvacInfo(
                         numberOfAcUnits = state.numberOfAcUnits,
                         acUnits = state.acUnits,
+
                         heatingSystemType = state.heatingSystemType,
                         numberOfHeatingAcUnits = state.numberOfHeatingAcUnits,
                         heatingAcUnits = state.heatingAcUnits,
@@ -173,16 +457,14 @@ fun AppRoot() {
                         heatingDaysPerYear = state.heatingDaysPerYear,
                         heatingGasKgPerYear = state.heatingGasKgPerYear,
                         heatingFuelLitersPerYear = state.heatingFuelLitersPerYear,
-                        waterHeaterType = state.waterHeaterType,
-                        waterTankSizeLiters = state.waterTankSizeLiters,
-                        waterTankInsulated = state.waterTankInsulated,
-                        waterHeaterPowerKw = state.waterHeaterPowerKw,
-                        waterHeaterDailyHours = state.waterHeaterDailyHours,
-                        waterHeaterDaysPerYear = state.waterHeaterDaysPerYear,
-                        solarWaterBackupType = state.solarWaterBackupType,
-                        solarWaterBackupHoursPerDay = state.solarWaterBackupHoursPerDay,
-                        gasTankKgPerYear = state.gasTankKgPerYear,
-                        fuelLitersPerYear = state.fuelLitersPerYear
+                        heatedAreaM2 = state.heatedAreaM2,
+
+                        heatingEfficiencyMethod = state.heatingEfficiencyMethod,
+                        heatingEfficiencyPercent = state.heatingEfficiencyPercent,
+                        heatingInstallationYear = state.heatingInstallationYear,
+
+                        numberOfWaterHeaters = state.numberOfWaterHeaters,
+                        waterHeaters = state.waterHeaters
                     )
                 )
                 navigateAfterSave(Screen.SurveyStep3)
@@ -254,9 +536,11 @@ fun AppRoot() {
                         generatorSubscriptionType = state.generatorSubscriptionType,
                         solarCapacity = state.solarCapacity,
                         solarHasBattery = state.solarHasBattery,
-                        monthlyEdlBill = state.monthlyEdlBill,
-                        monthlyGeneratorBill = state.monthlyGeneratorBill,
-                        solarSystemCost = state.solarSystemCost
+                        yearlyEdlBillUsd = state.yearlyEdlBillUsd,
+                        edlPricePerKwhUsd = state.edlPricePerKwhUsd,
+                        yearlyGeneratorBillUsd = state.yearlyGeneratorBillUsd,
+                        generatorPricePerKwhUsd = state.generatorPricePerKwhUsd,
+                        solarYearlyKwh = state.solarYearlyKwh
                     )
                 )
                 navigateAfterSave(Screen.SurveyStep6)
@@ -289,26 +573,43 @@ fun AppRoot() {
                     )
                 )
                 surveyData = updatedSurveyData
-                energyReport = EnergyCalculator.calculate(updatedSurveyData)
 
-                Toast.makeText(
-                    context,
-                    "Survey submitted! Generating report… ✅",
-                    Toast.LENGTH_SHORT
-                ).show()
+                val report = EnergyCalculator.calculate(updatedSurveyData)
+                energyReport = report
+
+                val currentEditingId = editingSurveyId
+
+                if (currentEditingId != null) {
+                    surveyViewModel.updateSurvey(currentEditingId, loggedUser, updatedSurveyData, report)
+                    Toast.makeText(context, "Survey updated!", Toast.LENGTH_SHORT).show()
+                } else {
+                    surveyViewModel.saveSurvey(loggedUser, updatedSurveyData, report)
+                    Toast.makeText(context, "Survey submitted & saved!", Toast.LENGTH_SHORT).show()
+                }
 
                 screen = Screen.Results
             },
-            onSaveDraft = { _ ->
+            onSaveDraft = {
                 screen = Screen.Dashboard
             }
         )
 
-        Screen.Results -> ResultsScreen(
-            report = energyReport!!,
-            surveyData = surveyData,
-            houseName = step1State.houseName.ifBlank { "Household" },
-            onBackToDashboard = { screen = Screen.Dashboard }
-        )
+        Screen.Results -> {
+            val report = energyReport
+            if (report != null) {
+                ResultsScreen(
+                    report = report,
+                    surveyData = surveyData,
+                    houseName = surveyData.houseInfo?.houseName
+                        ?: step1State.houseName.ifBlank { "Household" },
+                    onBackToDashboard = {
+                        resetSurvey()
+                        screen = Screen.Dashboard
+                    }
+                )
+            } else {
+                screen = Screen.Dashboard
+            }
+        }
     }
 }

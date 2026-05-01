@@ -1,14 +1,14 @@
 package com.univ.energymonitor.ui.state
 
 import com.univ.energymonitor.domain.model.AcUnitInfo
+import com.univ.energymonitor.domain.model.WaterHeaterInfo
 
 data class HvacSurveyUiState(
-    // Cooling
     val numberOfAcUnits: String = "",
     val acUnits: List<AcUnitInfo> = emptyList(),
 
-    // Heating
     val heatingSystemType: String = "",
+    val heatedAreaM2: String = "",
     val numberOfHeatingAcUnits: String = "",
     val heatingAcUnits: List<AcUnitInfo> = emptyList(),
     val numberOfHeatingUnits: String = "",
@@ -18,150 +18,207 @@ data class HvacSurveyUiState(
     val heatingGasKgPerYear: String = "",
     val heatingFuelLitersPerYear: String = "",
 
-    // Water Heating
-    val waterHeaterType: String = "",
-    val waterTankSizeLiters: String = "",
-    val waterTankInsulated: String = "",
-    val waterHeaterPowerKw: String = "",
-    val waterHeaterDailyHours: String = "",
-    val waterHeaterDaysPerYear: String = "",
-    val solarWaterBackupType: String = "",       // "None", "Electric", "Gas", "Diesel"
-    val solarWaterBackupHoursPerDay: String = "",
-    val gasTankKgPerYear: String = "",
-    val fuelLitersPerYear: String = "",
+    val heatingEfficiencyMethod: String = "",
+    val heatingEfficiencyPercent: String = "",
+    val heatingInstallationYear: String = "",
+
+    val numberOfWaterHeaters: String = "",
+    val waterHeaters: List<WaterHeaterInfo> = emptyList(),
 
     val showErrors: Boolean = false
-) {
-    fun withUpdatedAcCount(): HvacSurveyUiState {
-        val count = numberOfAcUnits.toIntOrNull() ?: 0
-        val newList = List(count) { index ->
-            acUnits.getOrElse(index) { AcUnitInfo() }
-        }
-        return copy(acUnits = newList)
-    }
+)
 
-    fun withUpdatedHeatingAcCount(): HvacSurveyUiState {
-        val count = numberOfHeatingAcUnits.toIntOrNull() ?: 0
-        val newList = List(count) { index ->
-            heatingAcUnits.getOrElse(index) { AcUnitInfo() }
+fun HvacSurveyUiState.withUpdatedAcCount(): HvacSurveyUiState {
+    val count = numberOfAcUnits.toIntOrNull()?.coerceIn(0, 20) ?: 0
+    return copy(
+        acUnits = List(count) { index -> acUnits.getOrNull(index) ?: AcUnitInfo() }
+    )
+}
+
+fun HvacSurveyUiState.withUpdatedHeatingAcCount(): HvacSurveyUiState {
+    val count = numberOfHeatingAcUnits.toIntOrNull()?.coerceIn(0, 20) ?: 0
+    return copy(
+        heatingAcUnits = List(count) { index -> heatingAcUnits.getOrNull(index) ?: AcUnitInfo() }
+    )
+}
+
+fun HvacSurveyUiState.withUpdatedWaterHeaterCount(): HvacSurveyUiState {
+    val count = numberOfWaterHeaters.toIntOrNull()?.coerceIn(0, 10) ?: 0
+    return copy(
+        waterHeaters = List(count) { index -> waterHeaters.getOrNull(index) ?: WaterHeaterInfo() }
+    )
+}
+
+private fun HvacSurveyUiState.hasValidHeatingEfficiency(): Boolean {
+    return when (heatingEfficiencyMethod) {
+        "I know the efficiency" -> {
+            val efficiency = heatingEfficiencyPercent.toDoubleOrNull() ?: return false
+            efficiency in 1.0..100.0
         }
-        return copy(heatingAcUnits = newList)
+
+        "I know the installation year" -> heatingInstallationYear.isNotBlank()
+
+        "I don't know" -> true
+
+        else -> false
     }
 }
 
-fun HvacSurveyUiState.isValid(): Boolean {
-    // Cooling validation
-    val acCount = numberOfAcUnits.toIntOrNull() ?: -1
-    if (acCount !in 0..20) return false
+private fun HvacSurveyUiState.hasValidHeatedArea(): Boolean {
+    val area = heatedAreaM2.toDoubleOrNull() ?: return false
+    return area in 1.0..1000.0
+}
 
-    for (unit in acUnits) {
+fun HvacSurveyUiState.isValid(): Boolean {
+    val acCount = numberOfAcUnits.toIntOrNull()
+    if (acCount == null || acCount !in 0..20) return false
+
+    if (acCount != acUnits.size) return false
+
+    acUnits.forEach { unit ->
         if (unit.roomName.isBlank()) return false
-        val roomSize = unit.roomSizeM2.toDoubleOrNull() ?: -1.0
+
+        val roomSize = unit.roomSizeM2.toDoubleOrNull() ?: return false
         if (roomSize !in 5.0..200.0) return false
+
         if (unit.acType.isBlank()) return false
-        if (unit.capacityValue.isNotBlank()) {
-            val capacity = unit.capacityValue.toDoubleOrNull() ?: -1.0
-            if (capacity <= 0) return false
-        }
         if (unit.copMethod.isBlank()) return false
+
         if (unit.copMethod == "I know the COP") {
-            val cop = unit.cop.toDoubleOrNull() ?: -1.0
+            val cop = unit.cop.toDoubleOrNull() ?: return false
             if (cop !in 1.0..8.0) return false
         }
-        if (unit.copMethod == "I know the AC year") {
-            if (unit.acYear.isBlank()) return false
-        }
-        val hours = unit.dailyUsageHours.toDoubleOrNull() ?: -1.0
+
+        if (unit.copMethod == "I know the AC year" && unit.acYear.isBlank()) return false
+
+        val hours = unit.dailyUsageHours.toDoubleOrNull() ?: return false
         if (hours !in 0.0..24.0) return false
-        val days = unit.daysPerYear.toIntOrNull() ?: -1
+
+        val days = unit.daysPerYear.toIntOrNull() ?: return false
         if (days !in 1..365) return false
     }
 
-    // Heating validation
     if (heatingSystemType.isBlank()) return false
+
     when (heatingSystemType) {
         "AC" -> {
-            val heatAcCount = numberOfHeatingAcUnits.toIntOrNull() ?: -1
-            if (heatAcCount !in 1..20) return false
-            for (unit in heatingAcUnits) {
+            val count = numberOfHeatingAcUnits.toIntOrNull() ?: return false
+            if (count !in 1..20 || count != heatingAcUnits.size) return false
+
+            heatingAcUnits.forEach { unit ->
                 if (unit.roomName.isBlank()) return false
-                val roomSize = unit.roomSizeM2.toDoubleOrNull() ?: -1.0
+
+                val roomSize = unit.roomSizeM2.toDoubleOrNull() ?: return false
                 if (roomSize !in 5.0..200.0) return false
+
                 if (unit.acType.isBlank()) return false
-                if (unit.capacityValue.isNotBlank()) {
-                    val capacity = unit.capacityValue.toDoubleOrNull() ?: -1.0
-                    if (capacity <= 0) return false
-                }
                 if (unit.copMethod.isBlank()) return false
+
                 if (unit.copMethod == "I know the COP") {
-                    val cop = unit.cop.toDoubleOrNull() ?: -1.0
+                    val cop = unit.cop.toDoubleOrNull() ?: return false
                     if (cop !in 1.0..8.0) return false
                 }
-                if (unit.copMethod == "I know the AC year") {
-                    if (unit.acYear.isBlank()) return false
-                }
-                val hours = unit.dailyUsageHours.toDoubleOrNull() ?: -1.0
+
+                if (unit.copMethod == "I know the AC year" && unit.acYear.isBlank()) return false
+
+                val hours = unit.dailyUsageHours.toDoubleOrNull() ?: return false
                 if (hours !in 0.0..24.0) return false
-                val days = unit.daysPerYear.toIntOrNull() ?: -1
+
+                val days = unit.daysPerYear.toIntOrNull() ?: return false
                 if (days !in 1..365) return false
             }
         }
+
         "Electric Heater" -> {
-            val units = numberOfHeatingUnits.toIntOrNull() ?: -1
+            if (!hasValidHeatedArea()) return false
+
+            val units = numberOfHeatingUnits.toIntOrNull() ?: return false
             if (units !in 1..20) return false
-            val power = heatingPowerKw.toDoubleOrNull() ?: -1.0
+
+            val power = heatingPowerKw.toDoubleOrNull() ?: return false
             if (power <= 0) return false
-            val hrs = heatingDailyUsageHours.toDoubleOrNull() ?: -1.0
-            if (hrs !in 0.0..24.0) return false
-            val d = heatingDaysPerYear.toIntOrNull() ?: -1
-            if (d !in 1..365) return false
+
+            val hours = heatingDailyUsageHours.toDoubleOrNull() ?: return false
+            if (hours !in 0.0..24.0) return false
+
+            val days = heatingDaysPerYear.toIntOrNull() ?: return false
+            if (days !in 1..365) return false
+
+            if (!hasValidHeatingEfficiency()) return false
         }
+
         "Gas Heater" -> {
-            val kg = heatingGasKgPerYear.toDoubleOrNull() ?: -1.0
-            if (kg <= 0) return false
+            if (!hasValidHeatedArea()) return false
+
+            val gas = heatingGasKgPerYear.toDoubleOrNull() ?: return false
+            if (gas <= 0) return false
+
+            if (!hasValidHeatingEfficiency()) return false
         }
+
         "Diesel/Fuel Heater" -> {
-            val liters = heatingFuelLitersPerYear.toDoubleOrNull() ?: -1.0
-            if (liters <= 0) return false
+            if (!hasValidHeatedArea()) return false
+
+            val fuelTanks = heatingFuelLitersPerYear.toDoubleOrNull() ?: return false
+            if (fuelTanks <= 0) return false
+
+            if (!hasValidHeatingEfficiency()) return false
         }
-        "None" -> { /* no validation needed */ }
+
+        "None" -> Unit
+
+        else -> return false
     }
 
-    // Water heating validation
-    if (waterHeaterType.isBlank()) return false
-    when (waterHeaterType) {
-        "Electrical Resistance" -> {
-            if (waterTankSizeLiters.isBlank()) return false
-            if (waterTankInsulated.isBlank()) return false
-            val power = waterHeaterPowerKw.toDoubleOrNull() ?: -1.0
-            if (power <= 0) return false
-            val hrs = waterHeaterDailyHours.toDoubleOrNull() ?: -1.0
-            if (hrs !in 0.0..24.0) return false
-            val d = waterHeaterDaysPerYear.toIntOrNull() ?: -1
-            if (d !in 1..365) return false
+    val waterCount = numberOfWaterHeaters.toIntOrNull() ?: return false
+    if (waterCount !in 0..10 || waterCount != waterHeaters.size) return false
+
+    waterHeaters.forEach { heater ->
+        if (heater.type.isBlank()) return false
+
+        if (heater.type != "None") {
+            if (heater.tankSizeLiters.isBlank()) return false
+            if (heater.tankInsulated.isBlank()) return false
         }
-        "Solar Heater" -> {
-            if (waterTankSizeLiters.isBlank()) return false
-            if (waterTankInsulated.isBlank()) return false
-            if (solarWaterBackupType.isBlank()) return false
-            if (solarWaterBackupType != "None") {
-                val hrs = solarWaterBackupHoursPerDay.toDoubleOrNull() ?: -1.0
-                if (hrs !in 0.0..24.0) return false
+
+        when (heater.type) {
+            "Electrical Resistance" -> {
+                val power = heater.powerKw.toDoubleOrNull() ?: return false
+                if (power <= 0) return false
+
+                val hours = heater.dailyHours.toDoubleOrNull() ?: return false
+                if (hours !in 0.0..24.0) return false
+
+                val days = heater.daysPerYear.toIntOrNull() ?: return false
+                if (days !in 1..365) return false
             }
+
+            "Solar Heater" -> {
+                val length = heater.solarPanelLengthMeters.toDoubleOrNull() ?: return false
+                val width = heater.solarPanelWidthMeters.toDoubleOrNull() ?: return false
+
+                if (length <= 0 || width <= 0) return false
+
+                if (heater.solarBackupType.isBlank()) return false
+
+                if (heater.solarBackupType != "None") {
+                    val backupHours = heater.solarBackupHoursPerDay.toDoubleOrNull() ?: return false
+                    if (backupHours !in 0.0..24.0) return false
+                }
+            }
+
+            "Gas Tank" -> {
+                val tanks = heater.gasTankCountPerYear.toIntOrNull() ?: return false
+                if (tanks <= 0) return false
+
+                val cost = heater.gasTankCostUsd.toDoubleOrNull() ?: return false
+                if (cost <= 0) return false
+            }
+
+            "None" -> Unit
+
+            else -> return false
         }
-        "Gas Tank" -> {
-            if (waterTankSizeLiters.isBlank()) return false
-            if (waterTankInsulated.isBlank()) return false
-            val kg = gasTankKgPerYear.toDoubleOrNull() ?: -1.0
-            if (kg <= 0) return false
-        }
-        "Fuel Heating" -> {
-            if (waterTankSizeLiters.isBlank()) return false
-            if (waterTankInsulated.isBlank()) return false
-            val liters = fuelLitersPerYear.toDoubleOrNull() ?: -1.0
-            if (liters <= 0) return false
-        }
-        "None" -> { /* no validation needed */ }
     }
 
     return true

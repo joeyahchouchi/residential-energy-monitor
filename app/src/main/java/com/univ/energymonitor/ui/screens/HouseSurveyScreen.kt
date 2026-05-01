@@ -14,13 +14,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -28,8 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -37,15 +40,20 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.univ.energymonitor.domain.model.WallLayerInfo
+import com.univ.energymonitor.ui.components.SurveyFormDropdown
+import com.univ.energymonitor.ui.components.SurveyFormTextField
+import com.univ.energymonitor.ui.components.SurveyInfoHint
+import com.univ.energymonitor.ui.components.SurveySectionCard
+import com.univ.energymonitor.ui.components.SurveyStepProgressBar
 import com.univ.energymonitor.ui.state.HouseSurveyUiState
 import com.univ.energymonitor.ui.state.isValid
+import com.univ.energymonitor.ui.state.withUpdatedWallLayerCount
 import com.univ.energymonitor.ui.theme.BackgroundGray
 import com.univ.energymonitor.ui.theme.DarkGreen
 import com.univ.energymonitor.ui.theme.PrimaryGreen
 import com.univ.energymonitor.ui.theme.TextGray
-import com.univ.energymonitor.ui.components.*
-import androidx.compose.runtime.*
-import androidx.compose.material3.IconButton
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseSurveyScreen(
@@ -58,33 +66,40 @@ fun HouseSurveyScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PrimaryGreen
-                    )
-                }
-            },
+            TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = PrimaryGreen
+                        )
+                    }
+                },
                 title = {
                     Column {
                         Text(
                             "Household Survey",
                             fontSize = 17.sp,
-                            fontWeight = FontWeight.Companion.Bold,
+                            fontWeight = FontWeight.Bold,
                             color = DarkGreen
                         )
-                        Text("Step 1 of 6 – House Information", fontSize = 12.sp, color = TextGray)
+                        Text(
+                            "Step 1 of 6 – House Information",
+                            fontSize = 12.sp,
+                            color = TextGray
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Companion.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
         containerColor = BackgroundGray
     ) { innerPadding ->
         Column(
-            modifier = Modifier.Companion.fillMaxSize().padding(innerPadding)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -100,14 +115,16 @@ fun HouseSurveyScreen(
                     isError = state.showErrors && state.houseName.isBlank(),
                     errorText = "Required"
                 )
-                SurveyFormTextField(
+
+                SurveyFormDropdown(
                     label = "Location in Lebanon",
-                    value = state.location,
-                    onValueChange = { state = state.copy(location = it) },
-                    placeholder = "e.g. Beirut, Tripoli",
+                    options = listOf("Beirut", "Saida", "Tripoli"),
+                    selected = state.location,
+                    onSelected = { state = state.copy(location = it) },
                     isError = state.showErrors && state.location.isBlank(),
                     errorText = "Required"
                 )
+
                 SurveyFormDropdown(
                     label = "House Type",
                     options = listOf("Apartment", "House", "Studio", "Villa", "Other"),
@@ -116,59 +133,63 @@ fun HouseSurveyScreen(
                     isError = state.showErrors && state.houseType.isBlank(),
                     errorText = "Required"
                 )
+
                 SurveyFormTextField(
                     label = "Floor Number",
                     value = state.floorNumber,
                     onValueChange = { state = state.copy(floorNumber = it) },
                     placeholder = "e.g. 3",
-                    keyboardType = KeyboardType.Companion.Number,
+                    keyboardType = KeyboardType.Number,
                     isError = state.showErrors && state.floorNumber.isBlank(),
                     errorText = "Required"
                 )
+
                 SurveyFormDropdown(
                     label = "Building Age",
                     options = listOf(
                         "before 2000",
-                        "2000–2012" ,
-                        "2012–2015" ,
-                        "2015–2020" ,
-                         "After 2020"
+                        "2000–2012",
+                        "2012–2015",
+                        "2015–2020",
+                        "After 2020"
                     ),
                     selected = state.buildingAge,
                     onSelected = { state = state.copy(buildingAge = it) },
                     isError = state.showErrors && state.buildingAge.isBlank(),
                     errorText = "Required"
                 )
+
                 SurveyFormTextField(
                     label = "Total Area (m²)",
                     value = state.totalAreaM2,
                     onValueChange = { state = state.copy(totalAreaM2 = it) },
                     placeholder = "e.g. 120",
-                    keyboardType = KeyboardType.Companion.Decimal,
+                    keyboardType = KeyboardType.Decimal,
                     isError = state.showErrors && state.totalAreaM2.isBlank(),
                     errorText = "Required"
                 )
+
                 Row(
-                    modifier = Modifier.Companion.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     SurveyFormTextField(
-                        modifier = Modifier.Companion.weight(1f),
+                        modifier = Modifier.weight(1f),
                         label = "No. of Rooms",
                         value = state.numberOfRooms,
                         onValueChange = { state = state.copy(numberOfRooms = it) },
                         placeholder = "e.g. 4",
-                        keyboardType = KeyboardType.Companion.Number,
+                        keyboardType = KeyboardType.Number,
                         isError = state.showErrors && state.numberOfRooms.isBlank(),
                         errorText = "Required"
                     )
                     SurveyFormTextField(
-                        modifier = Modifier.Companion.weight(1f),
+                        modifier = Modifier.weight(1f),
                         label = "No. of Occupants",
                         value = state.numberOfOccupants,
                         onValueChange = { state = state.copy(numberOfOccupants = it) },
                         placeholder = "e.g. 5",
-                        keyboardType = KeyboardType.Companion.Number,
+                        keyboardType = KeyboardType.Number,
                         isError = state.showErrors && state.numberOfOccupants.isBlank(),
                         errorText = "Required"
                     )
@@ -176,43 +197,71 @@ fun HouseSurveyScreen(
             }
 
             SurveySectionCard(title = "🧱  Building Envelope") {
-                SurveyFormDropdown(
-                    label = "External Wall Material",
-                    options = listOf("Cement", "Pumice", "Don't know/Other"),
-                    selected = state.wallMaterial,
-                    onSelected = {
-                        state = state.copy(
-                            wallMaterial = it,
-                            wallThickness = ""
+                SurveyFormTextField(
+                    label = "Glass Surface (m²)",
+                    value = state.glassSurfaceM2,
+                    onValueChange = { state = state.copy(glassSurfaceM2 = it) },
+                    placeholder = "e.g. 12",
+                    keyboardType = KeyboardType.Decimal,
+                    isError = state.showErrors && (
+                            state.glassSurfaceM2.isBlank() ||
+                                    state.glassSurfaceM2.toDoubleOrNull()?.let { it < 0 } ?: true
+                            ),
+                    errorText = "Enter a valid area"
+                )
+
+                SurveyFormTextField(
+                    label = "Exposed Wall Surface (m²)",
+                    value = state.exposedWallSurfaceM2,
+                    onValueChange = { state = state.copy(exposedWallSurfaceM2 = it) },
+                    placeholder = "e.g. 45",
+                    keyboardType = KeyboardType.Decimal,
+                    isError = state.showErrors && (
+                            state.exposedWallSurfaceM2.isBlank() ||
+                                    state.exposedWallSurfaceM2.toDoubleOrNull()?.let { it < 0 } ?: true
+                            ),
+                    errorText = "Enter a valid area"
+                )
+
+                SurveyFormTextField(
+                    label = "Number of Exposed Wall Layers",
+                    value = state.numberOfWallLayers,
+                    onValueChange = { state = state.copy(numberOfWallLayers = it).withUpdatedWallLayerCount() },
+                    placeholder = "e.g. 2",
+                    keyboardType = KeyboardType.Number,
+                    isError = state.showErrors && (
+                            state.numberOfWallLayers.isBlank() ||
+                                    state.numberOfWallLayers.toIntOrNull()?.let { it !in 0..10 } ?: true
+                            ),
+                    errorText = "Enter 0–10"
+                )
+
+                when (state.numberOfWallLayers.toIntOrNull()) {
+                    0 -> {
+                        SurveyInfoHint(text = "No exposed wall layers entered.")
+                    }
+                    null -> Unit
+                    else -> {
+                        SurveyInfoHint(
+                            text = "If unsure, check the depth of a window frame or door frame — it usually matches the wall thickness."
                         )
-                    },
-                    isError = state.showErrors && state.wallMaterial.isBlank(),
-                    errorText = "Required"
-                )
+                    }
+                }
 
-                SurveyFormDropdown(
-                    label = "Interior Wall Material",
-                    options = listOf("Gypsum Board", "Concrete Block", "Plaster on Brick", "Don't know/Other"),
-                    selected = state.interiorWallMaterial,
-                    onSelected = { state = state.copy(interiorWallMaterial = it) },
-                    isError = state.showErrors && state.interiorWallMaterial.isBlank(),
-                    errorText = "Required"
-                )
-                SurveyInfoHint(text = "💡 If you're unsure about the interior wall, most Lebanese apartments use plaster on brick or concrete block.")
-
-                SurveyFormDropdown(
-                    label = "Wall Thickness",
-                    options = when (state.wallMaterial) {
-                        "Cement" -> listOf("1 cm", "1.5 cm", "2 cm")
-                        "Pumice" -> listOf("15 cm", "20 cm", "25 cm")
-                        else -> listOf("15 cm", "20 cm", "25 cm", "1 cm", "1.5 cm", "2 cm")
-                    },
-                    selected = state.wallThickness,
-                    onSelected = { state = state.copy(wallThickness = it) },
-                    isError = state.showErrors && state.wallThickness.isBlank(),
-                    errorText = "Required"
-                )
-                SurveyInfoHint(text = "💡 If unsure, check the depth of a window frame or door frame — it usually matches the wall thickness.")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    state.wallLayers.forEachIndexed { index, layer ->
+                        WallLayerCard(
+                            title = "Wall Layer ${index + 1}",
+                            layer = layer,
+                            showErrors = state.showErrors,
+                            onLayerChange = { updated ->
+                                state = state.copy(
+                                    wallLayers = state.wallLayers.toMutableList().also { it[index] = updated }
+                                )
+                            }
+                        )
+                    }
+                }
 
                 SurveyFormDropdown(
                     label = "Glass Type",
@@ -222,7 +271,10 @@ fun HouseSurveyScreen(
                     isError = state.showErrors && state.glassType.isBlank(),
                     errorText = "Required"
                 )
-                SurveyInfoHint(text = "💡 If unsure, check the depth of a window frame or door frame — single glazing is thin (~4mm), double glazing is thicker (~20mm) with a visible gap between panes.")
+
+                SurveyInfoHint(
+                    text = "If unsure, check the depth of a window frame or door frame — single glazing is thin (~4mm), double glazing is thicker (~20mm) with a visible gap between panes."
+                )
 
                 SurveyFormDropdown(
                     label = "Roof Exposure",
@@ -232,6 +284,7 @@ fun HouseSurveyScreen(
                     isError = state.showErrors && state.roofExposure.isBlank(),
                     errorText = "Required"
                 )
+
                 SurveyFormDropdown(
                     label = "Has Insulation?",
                     options = listOf("Yes", "No"),
@@ -243,54 +296,104 @@ fun HouseSurveyScreen(
             }
 
             Row(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
                     onClick = { onSaveDraft(state) },
-                    modifier = Modifier.Companion.weight(1f).height(52.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
                 ) {
-                    Icon(Icons.Default.Save, null, modifier = Modifier.Companion.size(18.dp))
-                    Spacer(Modifier.Companion.width(6.dp))
+                    Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text(
                         "SAVE DRAFT",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Companion.Bold,
+                        fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp
                     )
                 }
+
                 Button(
                     onClick = {
-                        if (state.isValid()) onNextClick(state) else state =
-                            state.copy(showErrors = true)
+                        if (state.isValid()) onNextClick(state)
+                        else state = state.copy(showErrors = true)
                     },
-                    modifier = Modifier.Companion.weight(1f).height(52.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                 ) {
                     Text(
                         "NEXT",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Companion.Bold,
+                        fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp
                     )
-                    Spacer(Modifier.Companion.width(6.dp))
+                    Spacer(Modifier.width(6.dp))
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
                         null,
-                        modifier = Modifier.Companion.size(18.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
-            Spacer(Modifier.Companion.height(16.dp))
+
+            Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+private fun WallLayerCard(
+    title: String,
+    layer: WallLayerInfo,
+    showErrors: Boolean,
+    onLayerChange: (WallLayerInfo) -> Unit
+) {
+    SurveySectionCard(title = title) {
+        SurveyFormDropdown(
+            label = "Exposed Wall Material",
+            options = listOf("Cement", "Pumice", "Don't know/Other"),
+            selected = layer.material,
+            onSelected = { selected ->
+                onLayerChange(layer.copy(material = selected, thickness = ""))
+            },
+            isError = showErrors && layer.material.isBlank(),
+            errorText = "Required"
+        )
+
+        SurveyFormDropdown(
+            label = "Wall Thickness",
+            options = when (layer.material) {
+                "Cement" -> listOf("2 cm", "3 cm", "4 cm")
+                "Pumice" -> listOf("15 cm", "20 cm", "25 cm")
+                else -> listOf("15 cm", "20 cm", "25 cm", "2 cm", "3 cm", "4 cm")
+            },
+            selected = layer.thickness,
+            onSelected = { selected ->
+                onLayerChange(layer.copy(thickness = selected))
+            },
+            isError = showErrors && layer.thickness.isBlank(),
+            errorText = "Required"
+        )
+
+        Spacer(Modifier.height(4.dp))
     }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HouseSurveyScreenPreview() {
-    MaterialTheme { HouseSurveyScreen(onBackClick = {}, onNextClick = {}, onSaveDraft = {}) }
+    MaterialTheme {
+        HouseSurveyScreen(
+            onBackClick = {},
+            onNextClick = {},
+            onSaveDraft = {}
+        )
+    }
 }

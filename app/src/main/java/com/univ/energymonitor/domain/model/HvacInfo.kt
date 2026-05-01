@@ -1,13 +1,30 @@
 package com.univ.energymonitor.domain.model
+
 import kotlinx.serialization.Serializable
+
+@Serializable
+data class WaterHeaterInfo(
+    val type: String = "",
+    val tankSizeLiters: String = "",
+    val tankInsulated: String = "",
+    val powerKw: String = "",
+    val dailyHours: String = "",
+    val daysPerYear: String = "",
+    val solarBackupType: String = "",
+    val solarBackupHoursPerDay: String = "",
+    val solarPanelLengthMeters: String = "",
+    val solarPanelWidthMeters: String = "",
+    val gasTankCountPerYear: String = "",
+    val gasTankCostUsd: String = ""
+)
+
 @Serializable
 data class HvacInfo(
-    // Cooling
-    val numberOfAcUnits: String,
+    val numberOfAcUnits: String = "",
     val acUnits: List<AcUnitInfo> = emptyList(),
 
-    // Heating
-    val heatingSystemType: String,
+    val heatingSystemType: String = "",
+    val heatedAreaM2: String = "",
     val numberOfHeatingAcUnits: String = "",
     val heatingAcUnits: List<AcUnitInfo> = emptyList(),
     val numberOfHeatingUnits: String = "",
@@ -17,15 +34,10 @@ data class HvacInfo(
     val heatingGasKgPerYear: String = "",
     val heatingFuelLitersPerYear: String = "",
 
-    // Water Heating
-    val waterHeaterType: String,
-    val waterTankSizeLiters: String = "",
-    val waterTankInsulated: String = "",
-    val waterHeaterPowerKw: String = "",
-    val waterHeaterDailyHours: String = "",
-    val waterHeaterDaysPerYear: String = "",
-    val solarWaterBackupType: String = "",
-    val solarWaterBackupHoursPerDay: String = "",
-    val gasTankKgPerYear: String = "",
-    val fuelLitersPerYear: String = ""
+    val heatingEfficiencyMethod: String = "",
+    val heatingEfficiencyPercent: String = "",
+    val heatingInstallationYear: String = "",
+
+    val numberOfWaterHeaters: String = "",
+    val waterHeaters: List<WaterHeaterInfo> = emptyList()
 )

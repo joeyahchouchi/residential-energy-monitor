@@ -29,8 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -38,15 +40,20 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.univ.energymonitor.domain.engine.ApplianceEfficiencyTable
 import com.univ.energymonitor.domain.model.ApplianceItem
+import com.univ.energymonitor.ui.components.SurveyFormDropdown
+import com.univ.energymonitor.ui.components.SurveyFormTextField
+import com.univ.energymonitor.ui.components.SurveyFormToggle
+import com.univ.energymonitor.ui.components.SurveyInfoHint
+import com.univ.energymonitor.ui.components.SurveySectionCard
+import com.univ.energymonitor.ui.components.SurveyStepProgressBar
 import com.univ.energymonitor.ui.state.ApplianceSurveyUiState
 import com.univ.energymonitor.ui.state.isValid
 import com.univ.energymonitor.ui.theme.BackgroundGray
 import com.univ.energymonitor.ui.theme.DarkGreen
 import com.univ.energymonitor.ui.theme.PrimaryGreen
 import com.univ.energymonitor.ui.theme.TextGray
-import com.univ.energymonitor.ui.components.*
-import androidx.compose.runtime.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,7 +122,10 @@ fun ApplianceSurveyScreen(
                                     list[index] = appliance.copy(
                                         exists = checked,
                                         powerWatts = if (!checked) "" else appliance.powerWatts,
-                                        dailyUsageHours = if (!checked) "" else appliance.dailyUsageHours
+                                        dailyUsageHours = if (!checked) "" else appliance.dailyUsageHours,
+                                        efficiencyLabel = if (!checked) "" else appliance.efficiencyLabel,
+                                        purchaseYear = if (!checked) "" else appliance.purchaseYear,
+                                        userPickedUnknown = if (!checked) false else appliance.userPickedUnknown
                                     )
                                 }
                             )
@@ -163,6 +173,71 @@ fun ApplianceSurveyScreen(
                                         || appliance.dailyUsageHours.toDoubleOrNull()?.let { it !in 0.0..24.0 } ?: true),
                                 errorText = "0–24 hrs"
                             )
+                        }
+
+                        // Efficiency label dropdown (only for appliances with tier data)
+                        val availableLabels = ApplianceEfficiencyTable.labelsFor(appliance.name)
+                        if (availableLabels.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, bottom = 8.dp)
+                            ) {
+                                // Determine what to display in the dropdown:
+                                // - If user picked a real label → show it
+                                // - If user actively picked "Unknown" → show "Unknown"
+                                // - Otherwise (initial state) → show blank
+                                val displayValue = when {
+                                    appliance.efficiencyLabel.isNotBlank() -> appliance.efficiencyLabel
+                                    appliance.userPickedUnknown -> "Unknown"
+                                    else -> ""
+                                }
+
+                                SurveyFormDropdown(
+                                    label = "Energy Efficiency Label",
+                                    options = listOf("Unknown") + availableLabels,
+                                    selected = displayValue,
+                                    onSelected = { newLabel ->
+                                        state = state.copy(
+                                            appliances = state.appliances.toMutableList().also { list ->
+                                                list[index] = appliance.copy(
+                                                    efficiencyLabel = if (newLabel == "Unknown") "" else newLabel,
+                                                    purchaseYear = if (newLabel == "Unknown") appliance.purchaseYear else "",
+                                                    userPickedUnknown = (newLabel == "Unknown")
+                                                )
+                                            }
+                                        )
+                                    },
+                                    isError = state.showErrors
+                                            && appliance.efficiencyLabel.isBlank()
+                                            && !appliance.userPickedUnknown,
+                                    errorText = "Please select a label"
+                                )
+
+                                // Year field appears only if user actively picked "Unknown"
+                                if (appliance.userPickedUnknown && appliance.efficiencyLabel.isBlank()) {
+                                    SurveyFormTextField(
+                                        label = "Approximate Purchase Year",
+                                        value = appliance.purchaseYear,
+                                        onValueChange = {
+                                            state = state.copy(
+                                                appliances = state.appliances.toMutableList().also { list ->
+                                                    list[index] = appliance.copy(purchaseYear = it)
+                                                }
+                                            )
+                                        },
+                                        placeholder = "e.g. 2015",
+                                        keyboardType = KeyboardType.Number,
+                                        isError = state.showErrors && (appliance.purchaseYear.isBlank()
+                                                || appliance.purchaseYear.toIntOrNull()?.let { it !in 1980..2100 } ?: true),
+                                        errorText = "Enter a year between 1980 and 2100"
+                                    )
+                                    SurveyInfoHint(
+                                        text = "We'll estimate the efficiency class based on the purchase year. " +
+                                                "Older appliances (before 2013) are typically less efficient."
+                                    )
+                                }
+                            }
                         }
                     }
                 }

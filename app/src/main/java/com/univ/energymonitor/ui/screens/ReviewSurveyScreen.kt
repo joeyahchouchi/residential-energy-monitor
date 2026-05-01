@@ -40,8 +40,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,8 +53,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.univ.energymonitor.domain.model.SurveyData
+import com.univ.energymonitor.ui.components.SurveyFormToggle
+import com.univ.energymonitor.ui.components.SurveyInfoHint
+import com.univ.energymonitor.ui.components.SurveySectionCard
+import com.univ.energymonitor.ui.components.SurveyStepProgressBar
 import com.univ.energymonitor.ui.state.ReviewSurveyUiState
 import com.univ.energymonitor.ui.state.isValid
+import com.univ.energymonitor.ui.state.requiresEfficiencyInfo
 import com.univ.energymonitor.ui.theme.BackgroundGray
 import com.univ.energymonitor.ui.theme.DarkGreen
 import com.univ.energymonitor.ui.theme.ErrorRed
@@ -64,8 +71,6 @@ import com.univ.energymonitor.ui.theme.TextDark
 import com.univ.energymonitor.ui.theme.TextGray
 import com.univ.energymonitor.ui.theme.WarningOrange
 import com.univ.energymonitor.ui.theme.WarningSurface
-import com.univ.energymonitor.ui.components.*
-import androidx.compose.runtime.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +82,7 @@ fun ReviewSurveyScreen(
     onSubmit: (ReviewSurveyUiState) -> Unit,
     onSaveDraft: (ReviewSurveyUiState) -> Unit
 ) {
-    var state by remember { mutableStateOf(initialState) }
+    var state by remember(initialState) { mutableStateOf(initialState) }
 
     Scaffold(
         topBar = {
@@ -98,7 +103,6 @@ fun ReviewSurveyScreen(
         },
         containerColor = BackgroundGray
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -107,14 +111,12 @@ fun ReviewSurveyScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
             SurveyStepProgressBar(currentStep = 6, totalSteps = 6)
 
             SurveyInfoHint(
                 text = "Please review all your answers below. Tap \"Edit\" to go back and change any section."
             )
 
-            // ── Step 1 Summary: House Information ────────────────────────
             ReviewSectionCard(
                 title = "🏠  House Information",
                 stepNumber = 1,
@@ -130,8 +132,12 @@ fun ReviewSurveyScreen(
                     ReviewRow("Area", "${h.totalAreaM2} m²")
                     ReviewRow("Rooms", h.numberOfRooms)
                     ReviewRow("Occupants", h.numberOfOccupants)
-                    ReviewRow("External Wall", "${h.wallMaterial} · ${h.wallThickness}")
-                    ReviewRow("Interior Wall", h.interiorWallMaterial)
+                    ReviewRow("Glass Surface", "${h.glassSurfaceM2} m²")
+                    ReviewRow("Exposed Wall Surface", "${h.exposedWallSurfaceM2} m²")
+                    ReviewRow("Exposed Wall Layers", h.numberOfWallLayers)
+                    h.wallLayers.forEachIndexed { index, layer ->
+                        ReviewRow("Wall Layer ${index + 1}", "${layer.material} · ${layer.thickness}")
+                    }
                     ReviewRow("Glass", h.glassType)
                     ReviewRow("Roof Exposure", h.roofExposure)
                     ReviewRow("Insulation", h.insulationLevel)
@@ -140,7 +146,6 @@ fun ReviewSurveyScreen(
                 }
             }
 
-            // ── Step 2 Summary: HVAC & Water Heating ─────────────────────
             ReviewSectionCard(
                 title = "❄️  HVAC & Water Heating",
                 stepNumber = 2,
@@ -148,80 +153,103 @@ fun ReviewSurveyScreen(
             ) {
                 val v = surveyData.hvacInfo
                 if (v != null) {
-                    // Cooling
                     ReviewRow("AC Units", v.numberOfAcUnits)
+
                     v.acUnits.forEachIndexed { index, unit ->
                         ReviewRow("AC ${index + 1} Room", unit.roomName)
                         ReviewRow("AC ${index + 1} Room Size", "${unit.roomSizeM2} m²")
                         ReviewRow("AC ${index + 1} Type", unit.acType)
+
                         if (unit.capacityValue.isNotBlank()) {
                             ReviewRow("AC ${index + 1} Capacity", "${unit.capacityValue} ${unit.capacityUnit}")
                         }
+
                         ReviewRow("AC ${index + 1} COP Method", unit.copMethod)
+
                         if (unit.copMethod == "I know the COP") {
                             ReviewRow("AC ${index + 1} COP", unit.cop)
                         }
+
                         if (unit.copMethod == "I know the AC year") {
                             ReviewRow("AC ${index + 1} AC Age", unit.acYear)
                         }
+
                         ReviewRow("AC ${index + 1} Hours/Day", "${unit.dailyUsageHours} hrs")
                         ReviewRow("AC ${index + 1} Days/Year", "${unit.daysPerYear} days")
                     }
 
-                    // Heating
                     ReviewRow("Heating Type", v.heatingSystemType)
+
+                    if (v.heatingSystemType in listOf("Electric Heater", "Gas Heater", "Diesel/Fuel Heater")) {
+                        ReviewRow("Heated Area", "${v.heatedAreaM2} m2")
+                    }
+
                     when (v.heatingSystemType) {
                         "AC" -> {
                             ReviewRow("Heating AC Units", v.numberOfHeatingAcUnits)
+
                             v.heatingAcUnits.forEachIndexed { index, unit ->
                                 ReviewRow("Heat AC ${index + 1} Room", unit.roomName)
                                 ReviewRow("Heat AC ${index + 1} Size", "${unit.roomSizeM2} m²")
                                 ReviewRow("Heat AC ${index + 1} Type", unit.acType)
+
                                 if (unit.capacityValue.isNotBlank()) {
                                     ReviewRow("Heat AC ${index + 1} Cap.", "${unit.capacityValue} ${unit.capacityUnit}")
                                 }
+
                                 ReviewRow("Heat AC ${index + 1} COP", unit.copMethod)
                                 ReviewRow("Heat AC ${index + 1} Hrs/Day", "${unit.dailyUsageHours} hrs")
                                 ReviewRow("Heat AC ${index + 1} Days/Yr", "${unit.daysPerYear} days")
                             }
                         }
+
                         "Electric Heater" -> {
                             ReviewRow("Heating Units", v.numberOfHeatingUnits)
                             ReviewRow("Heater Power", "${v.heatingPowerKw} kW")
                             ReviewRow("Hours/Day", "${v.heatingDailyUsageHours} hrs")
                             ReviewRow("Days/Year", "${v.heatingDaysPerYear} days")
                         }
+
                         "Gas Heater" -> {
                             ReviewRow("Gas Usage", "${v.heatingGasKgPerYear} kg/year")
                         }
+
                         "Diesel/Fuel Heater" -> {
-                            ReviewRow("Fuel Usage", "${v.heatingFuelLitersPerYear} L/year")
+                            ReviewRow("Fuel Usage", "${v.heatingFuelLitersPerYear} tank(s)/year")
                         }
                     }
 
-                    // Water Heating
-                    ReviewRow("Water Heater", v.waterHeaterType)
-                    if (v.waterHeaterType != "None" && v.waterHeaterType.isNotBlank()) {
-                        ReviewRow("Tank Size", v.waterTankSizeLiters)
-                        ReviewRow("Insulated", v.waterTankInsulated)
-                    }
-                    when (v.waterHeaterType) {
-                        "Electrical Resistance" -> {
-                            ReviewRow("Heater Power", "${v.waterHeaterPowerKw} kW")
-                            ReviewRow("Hours/Day", "${v.waterHeaterDailyHours} hrs")
-                            ReviewRow("Days/Year", "${v.waterHeaterDaysPerYear} days")
+                    ReviewRow("Water Heaters", v.numberOfWaterHeaters)
+
+                    v.waterHeaters.forEachIndexed { index, heater ->
+                        ReviewRow("Water Heater ${index + 1} Type", heater.type)
+
+                        if (heater.type != "None" && heater.type.isNotBlank()) {
+                            ReviewRow("Water Heater ${index + 1} Tank Size", heater.tankSizeLiters)
+                            ReviewRow("Water Heater ${index + 1} Insulated", heater.tankInsulated)
                         }
-                        "Solar Heater" -> {
-                            ReviewRow("Backup Type", v.solarWaterBackupType)
-                            if (v.solarWaterBackupType != "None" && v.solarWaterBackupType.isNotBlank()) {
-                                ReviewRow("Backup Usage", "${v.solarWaterBackupHoursPerDay} hrs/day")
+
+                        when (heater.type) {
+                            "Electrical Resistance" -> {
+                                ReviewRow("Water Heater ${index + 1} Power", "${heater.powerKw} kW")
+                                ReviewRow("Water Heater ${index + 1} Hours/Day", "${heater.dailyHours} hrs")
+                                ReviewRow("Water Heater ${index + 1} Days/Year", "${heater.daysPerYear} days")
                             }
-                        }
-                        "Gas Tank" -> {
-                            ReviewRow("Gas Usage", "${v.gasTankKgPerYear} kg/year")
-                        }
-                        "Fuel Heating" -> {
-                            ReviewRow("Fuel Usage", "${v.fuelLitersPerYear} L/year")
+
+                            "Solar Heater" -> {
+                                ReviewRow("Water Heater ${index + 1} Panel Length", "${heater.solarPanelLengthMeters} m")
+                                ReviewRow("Water Heater ${index + 1} Panel Width", "${heater.solarPanelWidthMeters} m")
+                                ReviewRow("Water Heater ${index + 1} Backup Type", heater.solarBackupType)
+
+                                if (heater.solarBackupType != "None" && heater.solarBackupType.isNotBlank()) {
+                                    ReviewRow("Water Heater ${index + 1} Backup Usage", "${heater.solarBackupHoursPerDay} hrs/day")
+                                }
+                            }
+
+                            "Gas Tank" -> {
+                                ReviewRow("Water Heater ${index + 1} Gas Tanks/Year", heater.gasTankCountPerYear)
+                                ReviewRow("Water Heater ${index + 1} Gas Tank Cost", "\$${heater.gasTankCostUsd}")
+                            }
                         }
                     }
                 } else {
@@ -229,7 +257,6 @@ fun ReviewSurveyScreen(
                 }
             }
 
-            // ── Step 3 Summary: Lighting ─────────────────────────────────
             ReviewSectionCard(
                 title = "💡  Lighting Systems",
                 stepNumber = 3,
@@ -238,8 +265,10 @@ fun ReviewSurveyScreen(
                 val l = surveyData.lightingInfo
                 if (l != null) {
                     ReviewRow("Direct Lamps", l.numberOfDirectLamps)
+
                     if ((l.numberOfDirectLamps.toIntOrNull() ?: 0) > 0) {
                         ReviewRow("Direct Types", l.numberOfDirectTypes)
+
                         l.directLampSamples.forEachIndexed { i, lamp ->
                             ReviewRow(
                                 "Direct ${i + 1}",
@@ -247,7 +276,12 @@ fun ReviewSurveyScreen(
                             )
                         }
                     }
-                    ReviewRow("Indirect Lighting", if (l.hasIndirectLighting) "Yes (${l.numberOfIndirectRooms} rooms)" else "No")
+
+                    ReviewRow(
+                        "Indirect Lighting",
+                        if (l.hasIndirectLighting) "Yes (${l.numberOfIndirectRooms} rooms)" else "No"
+                    )
+
                     if (l.hasIndirectLighting) {
                         l.indirectRooms.forEachIndexed { i, room ->
                             ReviewRow(
@@ -256,10 +290,18 @@ fun ReviewSurveyScreen(
                             )
                         }
                     }
-                    ReviewRow("Outdoor Lighting", if (l.hasOutdoorLighting) "Yes (${l.numberOfOutdoorLamps})" else "No")
+
+                    ReviewRow(
+                        "Outdoor Lighting",
+                        if (l.hasOutdoorLighting) "Yes (${l.numberOfOutdoorLamps})" else "No"
+                    )
+
                     if (l.hasOutdoorLighting) {
                         l.outdoorLamps.forEachIndexed { i, lamp ->
-                            ReviewRow("Outdoor ${i + 1}", "${lamp.powerWatts}W · ${lamp.dailyUsageHours}h")
+                            ReviewRow(
+                                "Outdoor ${i + 1}",
+                                "${lamp.powerWatts}W · ${lamp.dailyUsageHours}h"
+                            )
                         }
                     }
                 } else {
@@ -267,7 +309,6 @@ fun ReviewSurveyScreen(
                 }
             }
 
-            // ── Step 4 Summary: Appliances ───────────────────────────────
             ReviewSectionCard(
                 title = "🔌  Appliances & Loads",
                 stepNumber = 4,
@@ -276,15 +317,29 @@ fun ReviewSurveyScreen(
                 val a = surveyData.applianceInfo
                 if (a != null) {
                     val active = a.appliances.filter { it.exists }
+
                     if (active.isEmpty() && a.customAppliances.isEmpty()) {
                         ReviewRow("Appliances", "None selected")
                     } else {
                         active.forEach { appliance ->
+                            val efficiencyText = if (appliance.requiresEfficiencyInfo()) {
+                                if (appliance.efficiencyLabel == "I don't know") {
+                                    " · Year: ${appliance.purchaseYear}"
+                                } else if (appliance.efficiencyLabel.isNotBlank()) {
+                                    " · Label: ${appliance.efficiencyLabel}"
+                                } else {
+                                    ""
+                                }
+                            } else {
+                                ""
+                            }
+
                             ReviewRow(
                                 appliance.name,
-                                "${appliance.powerWatts}W · ${appliance.dailyUsageHours} hrs/day"
+                                "${appliance.powerWatts}W · ${appliance.dailyUsageHours} hrs/day$efficiencyText"
                             )
                         }
+
                         a.customAppliances.forEach { custom ->
                             ReviewRow(
                                 "${custom.name} (custom)",
@@ -297,7 +352,6 @@ fun ReviewSurveyScreen(
                 }
             }
 
-            // ── Step 5 Summary: Electricity Supply Sources ───────────────
             ReviewSectionCard(
                 title = "⚡  Electricity Supply Sources",
                 stepNumber = 5,
@@ -313,31 +367,35 @@ fun ReviewSurveyScreen(
                     if (c.usesSolar) sources.add("Solar PV")
                     if (c.usesUps) sources.add("UPS/Battery")
                     if (c.usesNone) sources.add("None")
+
                     ReviewRow("Sources", sources.joinToString(", "))
 
                     if (c.usesGenerator) {
                         ReviewRow("Generator Type", c.generatorSubscriptionType)
                     }
+
                     if (c.usesSolar) {
                         ReviewRow("Solar Capacity", c.solarCapacity)
                         ReviewRow("Battery Storage", c.solarHasBattery)
                     }
-                    if (c.usesEdl && c.monthlyEdlBill.isNotBlank()) {
-                        ReviewRow("Monthly EDL Bill", "$${c.monthlyEdlBill}")
+
+                    if (c.usesEdl && c.yearlyEdlBillUsd.isNotBlank()) {
+                        ReviewRow("Yearly EDL Bill", c.yearlyEdlBillUsd)
                     }
-                    if (c.usesGenerator && c.monthlyGeneratorBill.isNotBlank()) {
-                        ReviewRow("Monthly Generator Bill", "$${c.monthlyGeneratorBill}")
+
+                    if (c.usesGenerator && c.yearlyGeneratorBillUsd.isNotBlank()) {
+                        ReviewRow("Yearly Generator Bill", c.yearlyGeneratorBillUsd)
                     }
-                    if (c.usesSolar && c.solarSystemCost.isNotBlank()) {
-                        ReviewRow("Solar Installation Cost", "$${c.solarSystemCost}")
+                    if (c.usesSolar && c.solarYearlyKwh.isNotBlank()) {
+                        ReviewRow("Solar Energy Used", "${c.solarYearlyKwh} kWh/year")
                     }
+
                 } else {
                     ReviewEmpty()
                 }
             }
-            // ── Final Notes & Confirmation ───────────────────────────────
-            SurveySectionCard(title = "📝  Final Notes & Confirmation") {
 
+            SurveySectionCard(title = "📝  Final Notes & Confirmation") {
                 Column(modifier = Modifier.padding(bottom = 12.dp)) {
                     Text(
                         text = "Additional Notes (optional)",
@@ -346,11 +404,16 @@ fun ReviewSurveyScreen(
                         color = TextDark,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
+
                     OutlinedTextField(
                         value = state.finalNotes,
                         onValueChange = { state = state.copy(finalNotes = it) },
                         placeholder = {
-                            Text("e.g. house recently renovated, new AC installed…", color = HintGray, fontSize = 13.sp)
+                            Text(
+                                "e.g. house recently renovated, new AC installed…",
+                                color = HintGray,
+                                fontSize = 13.sp
+                            )
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -383,14 +446,22 @@ fun ReviewSurveyScreen(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = ErrorRed,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(Modifier.width(8.dp))
-                        Text("Please confirm the data is accurate before submitting.", fontSize = 12.sp, color = ErrorRed)
+                        Text(
+                            "Please confirm the data is accurate before submitting.",
+                            fontSize = 12.sp,
+                            color = ErrorRed
+                        )
                     }
                 }
             }
 
-            // ── Navigation Buttons ───────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -405,6 +476,7 @@ fun ReviewSurveyScreen(
                     Spacer(Modifier.width(6.dp))
                     Text("BACK", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 }
+
                 OutlinedButton(
                     onClick = { onSaveDraft(state) },
                     modifier = Modifier.weight(1f).height(52.dp),
@@ -415,6 +487,7 @@ fun ReviewSurveyScreen(
                     Spacer(Modifier.width(6.dp))
                     Text("DRAFT", fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 }
+
                 Button(
                     onClick = {
                         if (state.isValid()) onSubmit(state)
@@ -458,16 +531,28 @@ private fun ReviewSectionCard(
                         .background(PrimaryGreen, RoundedCornerShape(2.dp))
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkGreen, modifier = Modifier.weight(1f))
+                Text(
+                    title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkGreen,
+                    modifier = Modifier.weight(1f)
+                )
                 TextButton(
                     onClick = onEditClick,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Step $stepNumber", tint = PrimaryGreen, modifier = Modifier.size(14.dp))
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit Step $stepNumber",
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(14.dp)
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text("Edit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PrimaryGreen)
                 }
             }
+
             Spacer(Modifier.height(12.dp))
             content()
         }
@@ -510,7 +595,11 @@ private fun ReviewEmpty() {
     ) {
         Icon(Icons.Default.Warning, contentDescription = null, tint = WarningOrange, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
-        Text("This section has not been completed yet. Tap Edit to fill it in.", fontSize = 12.sp, color = WarningOrange)
+        Text(
+            "This section has not been completed yet. Tap Edit to fill it in.",
+            fontSize = 12.sp,
+            color = WarningOrange
+        )
     }
 }
 

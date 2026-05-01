@@ -1,5 +1,7 @@
 package com.univ.energymonitor.domain.model
+
 import kotlinx.serialization.Serializable
+
 @Serializable
 data class SurveyData(
     val houseInfo: HouseInfo? = null,
@@ -7,5 +9,6 @@ data class SurveyData(
     val lightingInfo: LightingInfo? = null,
     val applianceInfo: ApplianceInfo? = null,
     val consumptionInfo: ConsumptionInfo? = null,
-    val reviewInfo: ReviewInfo? = null
+    val reviewInfo: ReviewInfo? = null,
+    val appliedRecommendationIds: List<String> = emptyList()
 )

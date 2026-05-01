@@ -1,7 +1,6 @@
 package com.univ.energymonitor.ui.screens
 
 import android.util.Patterns
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,13 +37,14 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -62,16 +61,12 @@ import com.univ.energymonitor.ui.theme.HintGray
 import com.univ.energymonitor.ui.theme.IconGray
 import com.univ.energymonitor.ui.theme.PrimaryGreen
 import com.univ.energymonitor.ui.theme.TextGray
-import com.univ.energymonitor.ui.components.*
-import androidx.compose.runtime.*
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun CreateAccountScreen(
-    existingUsernames: Set<String>,
     onAccountCreated: (NewUser) -> Unit,
     onBackToLogin: () -> Unit
 ) {
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var fullName by remember { mutableStateOf("") }
@@ -83,7 +78,6 @@ fun CreateAccountScreen(
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
 
-    // ── Validation helpers ────────────────────────────────────────────────
     val emailValid = Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
 
     val fullNameError = if (showErrors && fullName.isBlank()) "Full name is required" else ""
@@ -99,7 +93,6 @@ fun CreateAccountScreen(
             username.isBlank() -> "Username is required"
             username.length < 3 -> "At least 3 characters"
             username.contains(" ") -> "No spaces allowed"
-            existingUsernames.contains(username.trim().lowercase()) -> "Username already taken"
             else -> ""
         }
     } else ""
@@ -121,7 +114,6 @@ fun CreateAccountScreen(
     val isFormValid = fullName.isNotBlank() &&
             email.isNotBlank() && emailValid &&
             username.isNotBlank() && username.length >= 3 && !username.contains(" ") &&
-            !existingUsernames.contains(username.trim().lowercase()) &&
             password.isNotBlank() && password.length >= 8 &&
             confirmPassword == password
 
@@ -136,63 +128,62 @@ fun CreateAccountScreen(
                     password = password
                 )
             )
-            Toast.makeText(context, "Account created! You can now sign in.", Toast.LENGTH_SHORT).show()
         }
     }
 
     Box(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxSize()
             .background(BackgroundGray)
     ) {
         Column(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.Companion.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.Companion.height(48.dp))
+            Spacer(Modifier.height(48.dp))
 
             Box(
-                modifier = Modifier.Companion.size(72.dp).background(PrimaryGreen, CircleShape),
-                contentAlignment = Alignment.Companion.Center
+                modifier = Modifier.size(72.dp).background(PrimaryGreen, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
                 Text("⚡", fontSize = 34.sp)
             }
 
-            Spacer(Modifier.Companion.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             Text(
                 "Create Account",
                 color = DarkGreen,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Companion.Bold,
-                textAlign = TextAlign.Companion.Center
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Text(
                 "Join the Lebanon Energy Monitor",
                 color = TextGray,
                 fontSize = 12.sp,
-                textAlign = TextAlign.Companion.Center,
-                modifier = Modifier.Companion.padding(top = 6.dp, bottom = 32.dp)
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 6.dp, bottom = 32.dp)
             )
 
             Card(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 elevation = CardDefaults.cardElevation(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Companion.White)
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-                Column(modifier = Modifier.Companion.padding(24.dp)) {
+                Column(modifier = Modifier.padding(24.dp)) {
 
                     Text(
                         "Create your account",
                         fontSize = 22.sp,
-                        fontWeight = FontWeight.Companion.Bold,
+                        fontWeight = FontWeight.Bold,
                         color = DarkGreen,
-                        modifier = Modifier.Companion.padding(bottom = 20.dp)
+                        modifier = Modifier.padding(bottom = 20.dp)
                     )
 
                     // Full Name
@@ -206,20 +197,18 @@ fun CreateAccountScreen(
                         supportingText = if (fullNameError.isNotEmpty()) {
                             { Text(fullNameError, color = MaterialTheme.colorScheme.error) }
                         } else null,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Next),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = {
-                            focusManager.moveFocus(
-                                FocusDirection.Companion.Down
-                            )
+                            focusManager.moveFocus(FocusDirection.Down)
                         }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     // Email
@@ -234,22 +223,20 @@ fun CreateAccountScreen(
                             { Text(emailError, color = MaterialTheme.colorScheme.error) }
                         } else null,
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Companion.Email,
-                            imeAction = ImeAction.Companion.Next
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(onNext = {
-                            focusManager.moveFocus(
-                                FocusDirection.Companion.Down
-                            )
+                            focusManager.moveFocus(FocusDirection.Down)
                         }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     // Username
@@ -258,31 +245,23 @@ fun CreateAccountScreen(
                         onValueChange = { username = it },
                         label = { Text("Username") },
                         placeholder = { Text("Choose a username", color = HintGray) },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.AccountCircle,
-                                null,
-                                tint = PrimaryGreen
-                            )
-                        },
+                        leadingIcon = { Icon(Icons.Default.AccountCircle, null, tint = PrimaryGreen) },
                         isError = usernameError.isNotEmpty(),
                         supportingText = if (usernameError.isNotEmpty()) {
                             { Text(usernameError, color = MaterialTheme.colorScheme.error) }
                         } else null,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Next),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = {
-                            focusManager.moveFocus(
-                                FocusDirection.Companion.Down
-                            )
+                            focusManager.moveFocus(FocusDirection.Down)
                         }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     // Password
@@ -301,28 +280,26 @@ fun CreateAccountScreen(
                                 )
                             }
                         },
-                        visualTransformation = if (passwordVisible) VisualTransformation.Companion.None else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         isError = passwordError.isNotEmpty(),
                         supportingText = if (passwordError.isNotEmpty()) {
                             { Text(passwordError, color = MaterialTheme.colorScheme.error) }
                         } else null,
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Companion.Password,
-                            imeAction = ImeAction.Companion.Next
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(onNext = {
-                            focusManager.moveFocus(
-                                FocusDirection.Companion.Down
-                            )
+                            focusManager.moveFocus(FocusDirection.Down)
                         }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     // Confirm Password
@@ -333,9 +310,7 @@ fun CreateAccountScreen(
                         placeholder = { Text("Re-enter your password", color = HintGray) },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = PrimaryGreen) },
                         trailingIcon = {
-                            IconButton(onClick = {
-                                confirmPasswordVisible = !confirmPasswordVisible
-                            }) {
+                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                                 Icon(
                                     if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     null,
@@ -343,46 +318,49 @@ fun CreateAccountScreen(
                                 )
                             }
                         },
-                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.Companion.None else PasswordVisualTransformation(),
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         isError = confirmError.isNotEmpty(),
                         supportingText = if (confirmError.isNotEmpty()) {
                             { Text(confirmError, color = MaterialTheme.colorScheme.error) }
                         } else null,
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Companion.Password,
-                            imeAction = ImeAction.Companion.Done
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
                         ),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); attemptCreate() }),
+                        keyboardActions = KeyboardActions(onDone = {
+                            focusManager.clearFocus()
+                            attemptCreate()
+                        }),
                         singleLine = true,
-                        modifier = Modifier.Companion.fillMaxWidth().padding(bottom = 16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             focusedLabelColor = PrimaryGreen,
                             cursorColor = PrimaryGreen
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     Button(
                         onClick = { focusManager.clearFocus(); attemptCreate() },
-                        modifier = Modifier.Companion.fillMaxWidth().height(50.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                     ) {
                         Text(
                             "CREATE ACCOUNT",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Companion.Bold,
+                            fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         )
                     }
 
-                    Spacer(Modifier.Companion.height(16.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     Row(
-                        modifier = Modifier.Companion.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.Companion.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Already have an account?", color = TextGray, fontSize = 13.sp)
                         TextButton(onClick = onBackToLogin) {
@@ -390,14 +368,14 @@ fun CreateAccountScreen(
                                 "Sign In",
                                 color = PrimaryGreen,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Companion.Bold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.Companion.height(48.dp))
+            Spacer(Modifier.height(48.dp))
         }
     }
 }

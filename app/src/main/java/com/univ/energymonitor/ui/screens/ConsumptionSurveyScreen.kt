@@ -128,7 +128,8 @@ fun ConsumptionSurveyScreen(
                         state = state.copy(
                             usesEdl = it,
                             usesNone = if (it) false else state.usesNone,
-                            monthlyEdlBill = if (!it) "" else state.monthlyEdlBill
+                            yearlyEdlBillUsd = if (!it) "" else state.yearlyEdlBillUsd,
+                            edlPricePerKwhUsd = if (!it) "" else state.edlPricePerKwhUsd
                         )
                     }
                 )
@@ -141,7 +142,8 @@ fun ConsumptionSurveyScreen(
                             usesGenerator = it,
                             usesNone = if (it) false else state.usesNone,
                             generatorSubscriptionType = if (!it) "" else state.generatorSubscriptionType,
-                            monthlyGeneratorBill = if (!it) "" else state.monthlyGeneratorBill
+                            yearlyGeneratorBillUsd = if (!it) "" else state.yearlyGeneratorBillUsd,
+                            generatorPricePerKwhUsd = if (!it) "" else state.generatorPricePerKwhUsd
                         )
                     }
                 )
@@ -155,7 +157,7 @@ fun ConsumptionSurveyScreen(
                             usesNone = if (it) false else state.usesNone,
                             solarCapacity = if (!it) "" else state.solarCapacity,
                             solarHasBattery = if (!it) "" else state.solarHasBattery,
-                            solarSystemCost = if (!it) "" else state.solarSystemCost
+                            solarYearlyKwh = if (!it) "" else state.solarYearlyKwh
                         )
                     }
                 )
@@ -184,9 +186,11 @@ fun ConsumptionSurveyScreen(
                             generatorSubscriptionType = if (it) "" else state.generatorSubscriptionType,
                             solarCapacity = if (it) "" else state.solarCapacity,
                             solarHasBattery = if (it) "" else state.solarHasBattery,
-                            monthlyEdlBill = if (it) "" else state.monthlyEdlBill,
-                            monthlyGeneratorBill = if (it) "" else state.monthlyGeneratorBill,
-                            solarSystemCost = if (it) "" else state.solarSystemCost
+                            yearlyEdlBillUsd = if (it) "" else state.yearlyEdlBillUsd,
+                            edlPricePerKwhUsd = if (it) "" else state.edlPricePerKwhUsd,
+                            yearlyGeneratorBillUsd = if (it) "" else state.yearlyGeneratorBillUsd,
+                            generatorPricePerKwhUsd = if (it) "" else state.generatorPricePerKwhUsd,
+                            solarYearlyKwh = if (!it) "" else state.solarYearlyKwh
                         )
                     }
                 )
@@ -196,7 +200,37 @@ fun ConsumptionSurveyScreen(
                 }
             }
 
-            // ── Generator Details (conditional) ─────────────────────────
+            // ── EDL Cost Details (conditional) ───────────────────────────
+            if (state.usesEdl) {
+                SurveySectionCard(title = "⚡  EDL Cost Details") {
+                    SurveyInfoHint(text = "Enter your yearly average EDL bill and current price per kWh.")
+                    Spacer(Modifier.height(8.dp))
+
+                    SurveyFormTextField(
+                        label = "Yearly Average EDL Bill (USD)",
+                        value = state.yearlyEdlBillUsd,
+                        onValueChange = { state = state.copy(yearlyEdlBillUsd = it) },
+                        placeholder = "e.g. 240",
+                        keyboardType = KeyboardType.Decimal,
+                        isError = state.showErrors && (state.yearlyEdlBillUsd.isBlank()
+                                || state.yearlyEdlBillUsd.toDoubleOrNull()?.let { it <= 0 } ?: true),
+                        errorText = "Enter a valid amount"
+                    )
+
+                    SurveyFormTextField(
+                        label = "EDL Price ($/kWh)",
+                        value = state.edlPricePerKwhUsd,
+                        onValueChange = { state = state.copy(edlPricePerKwhUsd = it) },
+                        placeholder = "e.g. 0.10",
+                        keyboardType = KeyboardType.Decimal,
+                        isError = state.showErrors && (state.edlPricePerKwhUsd.isBlank()
+                                || state.edlPricePerKwhUsd.toDoubleOrNull()?.let { it <= 0 } ?: true),
+                        errorText = "Enter a valid price"
+                    )
+                }
+            }
+
+            // ── Generator Details (conditional) ──────────────────────────
             if (state.usesGenerator) {
                 SurveySectionCard(title = "🔋  Generator Subscription") {
                     SurveyFormDropdown(
@@ -211,6 +245,32 @@ fun ConsumptionSurveyScreen(
                         onSelected = { state = state.copy(generatorSubscriptionType = it) },
                         isError = state.showErrors && state.generatorSubscriptionType.isBlank(),
                         errorText = "Required"
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    SurveyInfoHint(text = "Enter your yearly average generator bill and current price per kWh.")
+                    Spacer(Modifier.height(8.dp))
+
+                    SurveyFormTextField(
+                        label = "Yearly Average Generator Bill (USD)",
+                        value = state.yearlyGeneratorBillUsd,
+                        onValueChange = { state = state.copy(yearlyGeneratorBillUsd = it) },
+                        placeholder = "e.g. 720",
+                        keyboardType = KeyboardType.Decimal,
+                        isError = state.showErrors && (state.yearlyGeneratorBillUsd.isBlank()
+                                || state.yearlyGeneratorBillUsd.toDoubleOrNull()?.let { it <= 0 } ?: true),
+                        errorText = "Enter a valid amount"
+                    )
+
+                    SurveyFormTextField(
+                        label = "Generator Price ($/kWh)",
+                        value = state.generatorPricePerKwhUsd,
+                        onValueChange = { state = state.copy(generatorPricePerKwhUsd = it) },
+                        placeholder = "e.g. 0.30",
+                        keyboardType = KeyboardType.Decimal,
+                        isError = state.showErrors && (state.generatorPricePerKwhUsd.isBlank()
+                                || state.generatorPricePerKwhUsd.toDoubleOrNull()?.let { it <= 0 } ?: true),
+                        errorText = "Enter a valid price"
                     )
                 }
             }
@@ -239,64 +299,23 @@ fun ConsumptionSurveyScreen(
                         isError = state.showErrors && state.solarHasBattery.isBlank(),
                         errorText = "Required"
                     )
-                }
-            }
 
-            // ── Energy Cost Information (conditional) ────────────────────
-            if (state.usesEdl || state.usesGenerator || state.usesSolar) {
-                SurveySectionCard(title = "💰  Energy Cost Information") {
-                    SurveyInfoHint(text = "Enter your average energy costs. This helps compare calculated vs actual consumption.")
                     Spacer(Modifier.height(8.dp))
 
-                    if (state.usesEdl) {
-                        SurveyFormDropdown(
-                            label = "Average Monthly EDL Bill (USD)",
-                            options = listOf(
-                                "Less than 10 USD",
-                                "10–30 USD",
-                                "30–50 USD",
-                                "50–80 USD",
-                                "More than 80 USD"
-                            ),
-                            selected = state.monthlyEdlBill,
-                            onSelected = { state = state.copy(monthlyEdlBill = it) },
-                            isError = state.showErrors && state.monthlyEdlBill.isBlank(),
-                            errorText = "Required"
-                        )
-                    }
+                    SurveyFormTextField(
+                        label = "Solar Energy Used Per Year (kWh/year)",
+                        value = state.solarYearlyKwh,
+                        onValueChange = { state = state.copy(solarYearlyKwh = it) },
+                        placeholder = "e.g. 2500",
+                        keyboardType = KeyboardType.Decimal,
+                        isError = state.showErrors && (state.solarYearlyKwh.isBlank()
+                                || state.solarYearlyKwh.toDoubleOrNull()?.let { it <= 0 } ?: true),
+                        errorText = "Enter a valid yearly kWh value"
+                    )
 
-                    if (state.usesGenerator) {
-                        SurveyFormDropdown(
-                            label = "Average Monthly Generator Bill (USD)",
-                            options = listOf(
-                                "Less than 30 USD",
-                                "30–60 USD",
-                                "60–100 USD",
-                                "100–150 USD",
-                                "150–250 USD",
-                                "More than 250 USD"
-                            ),
-                            selected = state.monthlyGeneratorBill,
-                            onSelected = { state = state.copy(monthlyGeneratorBill = it) },
-                            isError = state.showErrors && state.monthlyGeneratorBill.isBlank(),
-                            errorText = "Required"
-                        )
-                    }
-
-                    if (state.usesSolar) {
-                        SurveyFormTextField(
-                            label = "Solar Installation Cost (USD)",
-                            value = state.solarSystemCost,
-                            onValueChange = { state = state.copy(solarSystemCost = it) },
-                            placeholder = "e.g. 5000",
-                            keyboardType = KeyboardType.Decimal,
-                            isError = state.showErrors && (state.solarSystemCost.isBlank()
-                                    || state.solarSystemCost.toDoubleOrNull()?.let { it < 0 } ?: true),
-                            errorText = "Enter a valid amount"
-                        )
-                    }
                 }
             }
+
             // ── Navigation Buttons ───────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),

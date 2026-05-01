@@ -25,8 +25,13 @@ import com.univ.energymonitor.domain.engine.RecommendationEngine
 import com.univ.energymonitor.domain.model.CategoryResult
 import com.univ.energymonitor.domain.model.EnergyReport
 import com.univ.energymonitor.domain.model.SurveyData
-import com.univ.energymonitor.ui.theme.*
 import com.univ.energymonitor.ui.components.*
+import com.univ.energymonitor.ui.theme.*
+import androidx.compose.foundation.clickable
+import com.univ.energymonitor.domain.engine.CategoryBreakdownCalculator
+import com.univ.energymonitor.domain.engine.BreakdownItem
+
+
 
 private val CoolingColor = Color(0xFF2196F3)
 private val HeatingColor = Color(0xFFFF5722)
@@ -34,7 +39,6 @@ private val WaterColor = Color(0xFF00BCD4)
 private val LightingColor = Color(0xFFFFC107)
 private val ApplianceColor = Color(0xFF9C27B0)
 
-// Efficiency rating data class
 private data class EfficiencyRating(
     val grade: String,
     val label: String,
@@ -93,15 +97,8 @@ fun ResultsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-
-            // ══════════════════════════════════════════════════════════════
-            // HERO CARD (always visible)
-            // ══════════════════════════════════════════════════════════════
             HeroCard(report, rating)
 
-            // ══════════════════════════════════════════════════════════════
-            // TAB ROW
-            // ══════════════════════════════════════════════════════════════
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.White,
@@ -125,9 +122,6 @@ fun ResultsScreen(
                 }
             }
 
-            // ══════════════════════════════════════════════════════════════
-            // TAB CONTENT
-            // ══════════════════════════════════════════════════════════════
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -137,12 +131,11 @@ fun ResultsScreen(
             ) {
                 when (selectedTab) {
                     0 -> OverviewTab(report)
-                    1 -> DetailsTab(report)
+                    1 -> DetailsTab(report, surveyData)
                     2 -> TipsTab(recommendations)
                     3 -> ImpactTab(report, rating)
                 }
 
-                // ── Back to Dashboard Button ─────────────────────────────
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onBackToDashboard,
@@ -162,9 +155,6 @@ fun ResultsScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// HERO CARD
-// ─────────────────────────────────────────────────────────────────────────
 @SuppressLint("DefaultLocale")
 @Composable
 private fun HeroCard(report: EnergyReport, rating: EfficiencyRating) {
@@ -207,7 +197,6 @@ private fun HeroCard(report: EnergyReport, rating: EfficiencyRating) {
                 HeroStat("📅", "${formatNumber(report.totalDailyKwh)}", "kWh/day")
             }
 
-            // Efficiency rating badge
             if (rating.grade != "—") {
                 Spacer(Modifier.height(14.dp))
                 Row(
@@ -261,12 +250,8 @@ private fun HeroStat(icon: String, value: String, label: String) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// TAB 1: OVERVIEW
-// ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun OverviewTab(report: EnergyReport) {
-    // Monthly Averages Card
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -287,7 +272,6 @@ private fun OverviewTab(report: EnergyReport) {
         }
     }
 
-    // Breakdown Chart
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -295,16 +279,7 @@ private fun OverviewTab(report: EnergyReport) {
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(20.dp)
-                        .background(PrimaryGreen, RoundedCornerShape(2.dp))
-                )
-                Spacer(Modifier.width(10.dp))
-                Text("📊  Energy Breakdown", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
-            }
+            Text("📊  Energy Breakdown", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
             Spacer(Modifier.height(16.dp))
 
             BreakdownBarItem("HVAC Cooling", report.hvacCoolingPercent, report.hvacCooling.yearlyKwh, CoolingColor)
@@ -316,11 +291,26 @@ private fun OverviewTab(report: EnergyReport) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// TAB 2: DETAILS
-// ─────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailsTab(report: EnergyReport) {
+private fun DetailsTab(report: EnergyReport, surveyData: SurveyData) {
+    var selectedTitle by remember { mutableStateOf<String?>(null) }
+    var selectedColor by remember { mutableStateOf(Color.Gray) }
+    var selectedTotal by remember { mutableStateOf<CategoryResult?>(null) }
+    var selectedItems by remember { mutableStateOf(emptyList<BreakdownItem>()) }
+
+    fun openBreakdown(
+        title: String,
+        color: Color,
+        total: CategoryResult,
+        items: List<BreakdownItem>
+    ) {
+        selectedTitle = title
+        selectedColor = color
+        selectedTotal = total
+        selectedItems = items
+    }
+
     Text(
         "Category Breakdown",
         fontSize = 13.sp,
@@ -328,24 +318,111 @@ private fun DetailsTab(report: EnergyReport) {
         color = DarkGreen
     )
 
-    CategoryDetailCard("❄️", report.hvacCooling, CoolingColor, "AC cooling (per-unit days from survey)")
-    CategoryDetailCard("🔥", report.hvacHeating, HeatingColor, "Heating (per-unit days from survey)")
-    CategoryDetailCard("🚿", report.waterHeating, WaterColor, "Water heater year-round")
-    CategoryDetailCard("💡", report.lighting, LightingColor, "All indoor and outdoor fixtures")
-    CategoryDetailCard("🔌", report.appliances, ApplianceColor, "All household appliances")
+    CategoryDetailCard(
+        icon = "❄️",
+        result = report.hvacCooling,
+        color = CoolingColor,
+        detail = "Tap to see AC unit breakdown",
+        onClick = {
+            openBreakdown(
+                title = "HVAC Cooling",
+                color = CoolingColor,
+                total = report.hvacCooling,
+                items = CategoryBreakdownCalculator.coolingItems(surveyData)
+            )
+        }
+    )
 
-    // Assumptions Note
+    CategoryDetailCard(
+        icon = "🔥",
+        result = report.hvacHeating,
+        color = HeatingColor,
+        detail = "Tap to see heating breakdown",
+        onClick = {
+            openBreakdown(
+                title = "HVAC Heating",
+                color = HeatingColor,
+                total = report.hvacHeating,
+                items = CategoryBreakdownCalculator.heatingItems(surveyData)
+            )
+        }
+    )
+
+    CategoryDetailCard(
+        icon = "🚿",
+        result = report.waterHeating,
+        color = WaterColor,
+        detail = "Tap to see water heater breakdown",
+        onClick = {
+            openBreakdown(
+                title = "Water Heating",
+                color = WaterColor,
+                total = report.waterHeating,
+                items = CategoryBreakdownCalculator.waterHeatingItems(surveyData)
+            )
+        }
+    )
+
+    CategoryDetailCard(
+        icon = "💡",
+        result = report.lighting,
+        color = LightingColor,
+        detail = "Tap to see lighting breakdown",
+        onClick = {
+            openBreakdown(
+                title = "Lighting",
+                color = LightingColor,
+                total = report.lighting,
+                items = CategoryBreakdownCalculator.lightingItems(surveyData)
+            )
+        }
+    )
+
+    CategoryDetailCard(
+        icon = "🔌",
+        result = report.appliances,
+        color = ApplianceColor,
+        detail = "Tap to see appliance breakdown",
+        onClick = {
+            openBreakdown(
+                title = "Appliances",
+                color = ApplianceColor,
+                total = report.appliances,
+                items = CategoryBreakdownCalculator.applianceItems(surveyData)
+            )
+        }
+    )
+
+    val edlPrice = surveyData.consumptionInfo?.edlPricePerKwhUsd?.toDoubleOrNull()
+        ?: 0.0
+
     SurveyInfoHint(
         text = "Estimates use Lebanon-typical defaults for appliance wattages " +
                 "and seasonal usage. Actual consumption may vary. " +
-                "EDL rate: ${'$'}${LebanonDefaults.EDL_PRICE_PER_KWH_USD}/kWh · " +
+                "EDL rate: ${'$'}${String.format("%.2f", edlPrice)}/kWh · " +
                 "CO₂: ${LebanonDefaults.CO2_KG_PER_KWH} kg/kWh."
     )
+
+    if (selectedTitle != null && selectedTotal != null) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                selectedTitle = null
+                selectedTotal = null
+                selectedItems = emptyList()
+            },
+            containerColor = Color.White
+        ) {
+            CategoryBreakdownSheet(
+                title = selectedTitle ?: "",
+                color = selectedColor,
+                total = selectedTotal!!,
+                items = selectedItems
+            )
+        }
+    }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// TAB 3: TIPS (Recommendations)
-// ─────────────────────────────────────────────────────────────────────────
+
 @Composable
 private fun TipsTab(recommendations: List<com.univ.energymonitor.domain.model.Recommendation>) {
     if (recommendations.isEmpty()) {
@@ -382,13 +459,9 @@ private fun TipsTab(recommendations: List<com.univ.energymonitor.domain.model.Re
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// TAB 4: IMPACT
-// ─────────────────────────────────────────────────────────────────────────
 @SuppressLint("DefaultLocale")
 @Composable
 private fun ImpactTab(report: EnergyReport, rating: EfficiencyRating) {
-    // Main CO₂ Card
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -401,12 +474,7 @@ private fun ImpactTab(report: EnergyReport, rating: EfficiencyRating) {
         ) {
             Text("🌍", fontSize = 40.sp)
             Spacer(Modifier.height(8.dp))
-            Text(
-                "Environmental Impact",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = DarkGreen
-            )
+            Text("Environmental Impact", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
             Spacer(Modifier.height(8.dp))
             Text(
                 "${formatNumber(report.totalYearlyCo2Kg)} kg CO₂/year",
@@ -424,9 +492,8 @@ private fun ImpactTab(report: EnergyReport, rating: EfficiencyRating) {
         }
     }
 
-    // Equivalences
-    val treesNeeded = (report.totalYearlyCo2Kg / 22.0).toInt() // 1 tree absorbs ~22 kg CO₂/year
-    val carKm = (report.totalYearlyCo2Kg / 0.12).toInt() // ~120g CO₂/km for average car
+    val treesNeeded = (report.totalYearlyCo2Kg / 22.0).toInt()
+    val carKm = (report.totalYearlyCo2Kg / 0.12).toInt()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -437,14 +504,12 @@ private fun ImpactTab(report: EnergyReport, rating: EfficiencyRating) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Equivalent to...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
             Spacer(Modifier.height(12.dp))
-
             EquivalenceRow("🌳", "$treesNeeded trees", "needed to offset yearly CO₂")
             Spacer(Modifier.height(8.dp))
             EquivalenceRow("🚗", "${formatNumber(carKm.toDouble())} km", "driven by an average car")
         }
     }
 
-    // Efficiency Rating Details
     if (rating.grade != "—") {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -473,11 +538,7 @@ private fun ImpactTab(report: EnergyReport, rating: EfficiencyRating) {
                             fontSize = 12.sp,
                             color = TextGray
                         )
-                        Text(
-                            "Based on LEEB 2025 standards",
-                            fontSize = 10.sp,
-                            color = TextGray
-                        )
+                        Text("Based on LEEB 2025 standards", fontSize = 10.sp, color = TextGray)
                     }
                 }
             }
@@ -497,9 +558,6 @@ private fun EquivalenceRow(icon: String, value: String, description: String) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// SHARED COMPONENTS
-// ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun MonthlyStatItem(value: String, unit: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -537,7 +595,9 @@ private fun BreakdownBarItem(name: String, percent: Double, yearlyKwh: Double, c
                 color = TextGray
             )
         }
+
         Spacer(Modifier.height(4.dp))
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -557,9 +617,17 @@ private fun BreakdownBarItem(name: String, percent: Double, yearlyKwh: Double, c
 }
 
 @Composable
-private fun CategoryDetailCard(icon: String, result: CategoryResult, color: Color, detail: String) {
+private fun CategoryDetailCard(
+    icon: String,
+    result: CategoryResult,
+    color: Color,
+    detail: String,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -577,16 +645,168 @@ private fun CategoryDetailCard(icon: String, result: CategoryResult, color: Colo
             ) {
                 Text(icon, fontSize = 20.sp)
             }
+
             Spacer(Modifier.width(14.dp))
+
             Column(modifier = Modifier.weight(1f)) {
-                Text(result.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DarkGreen)
+                Text(
+                    result.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkGreen
+                )
                 Text(detail, fontSize = 11.sp, color = TextGray)
             }
+
             Column(horizontalAlignment = Alignment.End) {
-                Text("${formatNumber(result.yearlyKwh)} kWh", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color)
+                Text(
+                    "${formatNumber(result.yearlyKwh)} kWh",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
                 Text("$${formatNumber(result.yearlyCostUsd)}", fontSize = 12.sp, color = TextGray)
                 Text("${formatNumber(result.yearlyCo2Kg)} kg CO₂", fontSize = 11.sp, color = TextGray)
             }
+        }
+    }
+}
+@Composable
+private fun CategoryBreakdownSheet(
+    title: String,
+    color: Color,
+    total: CategoryResult,
+    items: List<BreakdownItem>
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .width(5.dp)
+                    .height(28.dp)
+                    .background(color, RoundedCornerShape(3.dp))
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkGreen
+                )
+                Text(
+                    "${formatNumber(total.yearlyKwh)} kWh/year · $${formatNumber(total.yearlyCostUsd)} · ${formatNumber(total.yearlyCo2Kg)} kg CO₂",
+                    fontSize = 12.sp,
+                    color = TextGray
+                )
+            }
+        }
+
+        if (items.isEmpty()) {
+            Text(
+                "No detailed contributors available for this category.",
+                fontSize = 13.sp,
+                color = TextGray
+            )
+        } else {
+            val maxKwh = items.maxOfOrNull { it.yearlyKwh } ?: 0.0
+
+            items.forEach { item ->
+                BreakdownBar(
+                    item = item,
+                    maxKwh = maxKwh,
+                    totalKwh = total.yearlyKwh,
+                    color = color
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun BreakdownBar(
+    item: BreakdownItem,
+    maxKwh: Double,
+    totalKwh: Double,
+    color: Color
+) {
+    val barFraction = if (maxKwh > 0.0) {
+        (item.yearlyKwh / maxKwh).toFloat().coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    val percentOfCategory = if (totalKwh > 0.0) {
+        item.yearlyKwh / totalKwh * 100.0
+    } else {
+        0.0
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BackgroundGray, RoundedCornerShape(12.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    item.label,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark
+                )
+                Text(
+                    item.detail,
+                    fontSize = 11.sp,
+                    color = TextGray
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${formatNumber(item.yearlyKwh)} kWh",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+                Text(
+                    "${String.format("%.1f", percentOfCategory)}%",
+                    fontSize = 10.sp,
+                    color = TextGray
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(9.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(LightDivider)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(barFraction)
+                    .height(9.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(color)
+            )
         }
     }
 }

@@ -20,7 +20,7 @@ fun defaultAppliances(): List<ApplianceItem> = listOf(
     ApplianceItem("Iron"),
     ApplianceItem("Vacuum"),
     ApplianceItem("Television"),
-    ApplianceItem("Extractor"),
+    ApplianceItem("Water Heater"),
     ApplianceItem("Router / WiFi"),
     ApplianceItem("Blender"),
     ApplianceItem("TV Decoder"),
@@ -39,20 +39,46 @@ fun defaultAppliances(): List<ApplianceItem> = listOf(
     ApplianceItem("EV Charger")
 )
 
+fun ApplianceItem.requiresEfficiencyInfo(): Boolean {
+    return name in listOf(
+        "Fridge",
+        "Washing Machine",
+        "Dishwasher",
+        "Television",
+        "Electric Oven",
+        "Water Heater"
+    )
+}
+
 fun ApplianceSurveyUiState.isValid(): Boolean {
     val activeAppliances = appliances.filter { it.exists }
+
     for (app in activeAppliances) {
         val power = app.powerWatts.toDoubleOrNull() ?: -1.0
         if (power <= 0) return false
+
         val hours = app.dailyUsageHours.toDoubleOrNull() ?: -1.0
         if (hours !in 0.0..24.0) return false
+
+        if (app.requiresEfficiencyInfo()) {
+            // User must either pick a real label OR pick "Unknown" + provide a year
+            if (app.efficiencyLabel.isBlank()) {
+                if (!app.userPickedUnknown) return false  // nothing selected at all
+                val year = app.purchaseYear.toIntOrNull() ?: -1
+                if (year !in 1980..2100) return false  // picked Unknown but no valid year
+            }
+        }
     }
+
     for (app in customAppliances) {
         if (app.name.isBlank()) return false
+
         val power = app.powerWatts.toDoubleOrNull() ?: -1.0
         if (power <= 0) return false
+
         val hours = app.dailyUsageHours.toDoubleOrNull() ?: -1.0
         if (hours !in 0.0..24.0) return false
     }
+
     return true
 }
